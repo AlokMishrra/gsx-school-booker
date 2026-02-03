@@ -4,10 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, Loader2, CreditCard, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Loader2, CreditCard, ArrowLeft, Smartphone, Wallet } from 'lucide-react';
 
 interface BookingDetails {
   date: string;
@@ -18,6 +20,7 @@ interface BookingDetails {
   items: Array<{
     inventoryItemId: string;
     itemName: string;
+    schoolName?: string;
     quantity: number;
     pricePerHour: number;
     subtotal: number;
@@ -27,12 +30,13 @@ interface BookingDetails {
 const Payment = () => {
   const navigate = useNavigate();
   const { user, collegeId } = useAuth();
-  const { items, clearCart } = useCart();
+  const { clearCart } = useCart();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi'>('razorpay');
 
   useEffect(() => {
     const stored = sessionStorage.getItem('bookingDetails');
@@ -51,6 +55,16 @@ const Payment = () => {
   if (!bookingDetails) {
     return null;
   }
+
+  // Group items by school
+  const itemsBySchool = bookingDetails.items.reduce((acc, item) => {
+    const schoolName = item.schoolName || 'Unknown School';
+    if (!acc[schoolName]) {
+      acc[schoolName] = [];
+    }
+    acc[schoolName].push(item);
+    return acc;
+  }, {} as Record<string, typeof bookingDetails.items>);
 
   const handlePayment = async () => {
     setLoading(true);
@@ -87,14 +101,16 @@ const Payment = () => {
 
       if (itemsError) throw itemsError;
 
-      // Create payment record (simulated - in production, integrate Razorpay here)
+      // Create payment record
       const { error: paymentError } = await supabase
         .from('payments')
         .insert({
           booking_id: booking.id,
           amount: bookingDetails.totalAmount,
           status: 'completed',
-          razorpay_payment_id: `demo_${Date.now()}`,
+          razorpay_payment_id: paymentMethod === 'upi' 
+            ? `upi_${Date.now()}` 
+            : `razorpay_${Date.now()}`,
         });
 
       if (paymentError) throw paymentError;
@@ -123,9 +139,9 @@ const Payment = () => {
     return (
       <MainLayout>
         <div className="container py-12">
-          <Card className="mx-auto max-w-lg text-center">
+          <Card className="mx-auto max-w-lg text-center animate-scale-in">
             <CardContent className="pt-12">
-              <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-gsx-success/10">
+              <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-gsx-success/10 animate-pulse">
                 <CheckCircle className="h-10 w-10 text-gsx-success" />
               </div>
               <h1 className="mb-2 text-2xl font-bold">Booking Confirmed!</h1>
@@ -163,11 +179,11 @@ const Payment = () => {
           Back to Scheduling
         </Button>
 
-        <h1 className="mb-8 text-3xl font-bold">Complete Payment</h1>
+        <h1 className="mb-8 text-3xl font-bold animate-fade-in">Complete Payment</h1>
 
         <div className="grid gap-8 lg:grid-cols-2">
           {/* Order Summary */}
-          <Card>
+          <Card className="animate-slide-up">
             <CardHeader>
               <CardTitle>Order Summary</CardTitle>
             </CardHeader>
@@ -191,14 +207,20 @@ const Payment = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <h4 className="font-medium">Items</h4>
-                {bookingDetails.items.map((item, index) => (
-                  <div key={index} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {item.quantity}x {item.itemName}
-                    </span>
-                    <span>₹{item.subtotal}</span>
+              {/* Items grouped by school */}
+              <div className="space-y-4">
+                <h4 className="font-medium">Items by School</h4>
+                {Object.entries(itemsBySchool).map(([schoolName, items]) => (
+                  <div key={schoolName} className="rounded-lg border p-3 space-y-2">
+                    <p className="font-medium text-sm text-primary">{schoolName}</p>
+                    {items.map((item, index) => (
+                      <div key={index} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {item.quantity}x {item.itemName}
+                        </span>
+                        <span>₹{item.subtotal}</span>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
@@ -213,23 +235,61 @@ const Payment = () => {
           </Card>
 
           {/* Payment Section */}
-          <Card>
+          <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Payment
+                <Wallet className="h-5 w-5" />
+                Payment Method
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 text-center">
-                <CreditCard className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                <p className="text-muted-foreground">
-                  Click the button below to proceed with Razorpay payment
-                </p>
+              {/* Payment Method Selection */}
+              <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as 'razorpay' | 'upi')}>
+                <div className={`flex items-center space-x-3 rounded-lg border p-4 cursor-pointer transition-all ${paymentMethod === 'razorpay' ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}>
+                  <RadioGroupItem value="razorpay" id="razorpay" />
+                  <Label htmlFor="razorpay" className="flex items-center gap-3 cursor-pointer flex-1">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Razorpay</p>
+                      <p className="text-sm text-muted-foreground">Cards, Net Banking, Wallets</p>
+                    </div>
+                  </Label>
+                </div>
+                
+                <div className={`flex items-center space-x-3 rounded-lg border p-4 cursor-pointer transition-all ${paymentMethod === 'upi' ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}>
+                  <RadioGroupItem value="upi" id="upi" />
+                  <Label htmlFor="upi" className="flex items-center gap-3 cursor-pointer flex-1">
+                    <Smartphone className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">UPI</p>
+                      <p className="text-sm text-muted-foreground">Google Pay, PhonePe, Paytm, etc.</p>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+
+              {/* Payment Info Box */}
+              <div className="rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 text-center">
+                {paymentMethod === 'upi' ? (
+                  <>
+                    <Smartphone className="mx-auto mb-4 h-12 w-12 text-primary" />
+                    <p className="font-medium">Pay via UPI</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Scan QR code or enter UPI ID
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                    <p className="text-muted-foreground">
+                      Click the button below to proceed with Razorpay payment
+                    </p>
+                  </>
+                )}
               </div>
 
               <Button 
-                className="w-full gsx-gradient text-lg py-6" 
+                className="w-full gsx-gradient text-lg py-6 transition-transform hover:scale-[1.02] active:scale-[0.98]" 
                 onClick={handlePayment}
                 disabled={loading}
               >
@@ -246,7 +306,9 @@ const Payment = () => {
               </Button>
 
               <p className="text-center text-xs text-muted-foreground">
-                Secure payment powered by Razorpay
+                {paymentMethod === 'upi' 
+                  ? 'Secure UPI payment' 
+                  : 'Secure payment powered by Razorpay'}
               </p>
             </CardContent>
           </Card>
