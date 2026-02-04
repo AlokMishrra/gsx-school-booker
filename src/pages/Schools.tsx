@@ -1,35 +1,49 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { SchoolCard } from '@/components/schools/SchoolCard';
+import { SimpleSchoolCard } from '@/components/schools/SimpleSchoolCard';
+import { OnboardingGuide } from '@/components/onboarding/OnboardingGuide';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, MapPin, Building2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Search, MapPin, Building2, X, ArrowRight, CheckCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 const Schools = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedState, setSelectedState] = useState<string>('all');
   const [selectedCity, setSelectedCity] = useState<string>('all');
+  const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Check if user has seen onboarding
+  useEffect(() => {
+    const hasSeenOnboarding = localStorage.getItem('gsx_onboarding_complete');
+    if (!hasSeenOnboarding) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('gsx_onboarding_complete', 'true');
+    setShowOnboarding(false);
+  };
 
   const { data: schools, isLoading } = useQuery({
     queryKey: ['schools'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('schools')
-        .select(`
-          *,
-          inventory_items (
-            id,
-            name,
-            item_type,
-            price_per_hour,
-            quantity_available
-          )
-        `)
+        .select('id, name, address, city, state')
         .eq('is_active', true)
         .order('name');
 
@@ -89,7 +103,7 @@ const Schools = () => {
 
   const handleStateChange = (value: string) => {
     setSelectedState(value);
-    setSelectedCity('all'); // Reset city when state changes
+    setSelectedCity('all');
   };
 
   const clearFilters = () => {
@@ -98,36 +112,73 @@ const Schools = () => {
     setSelectedCity('all');
   };
 
+  const handleSchoolSelect = (schoolId: string) => {
+    setSelectedSchools(prev => {
+      if (prev.includes(schoolId)) {
+        return prev.filter(id => id !== schoolId);
+      }
+      return [...prev, schoolId];
+    });
+  };
+
+  const handleProceedToBooking = () => {
+    if (!user) {
+      toast({
+        title: 'Please sign in',
+        description: 'You need to sign in to book schools',
+        variant: 'destructive',
+      });
+      navigate('/login');
+      return;
+    }
+
+    if (selectedSchools.length === 0) {
+      toast({
+        title: 'No schools selected',
+        description: 'Please select at least one school to continue',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Store selected schools in session storage
+    const selectedSchoolData = schools?.filter(s => selectedSchools.includes(s.id)) || [];
+    sessionStorage.setItem('selectedSchools', JSON.stringify(selectedSchoolData));
+    navigate('/booking');
+  };
+
   const hasActiveFilters = searchQuery || selectedState !== 'all' || selectedCity !== 'all';
 
   return (
     <MainLayout>
+      {showOnboarding && <OnboardingGuide onComplete={handleOnboardingComplete} />}
+      
       <div className="container py-8">
-        {/* Header with animation */}
+        {/* Header */}
         <div className="mb-8 animate-fade-in">
-          <h1 className="mb-2 text-3xl font-bold">Browse Schools</h1>
+          <h1 className="mb-2 text-3xl font-bold">Select Schools</h1>
           <p className="text-muted-foreground">
-            Explore available schools and their facilities for booking across India
+            Choose one or more schools from different cities to book
           </p>
         </div>
 
-        {/* Filters Section with Grid */}
+        {/* Filters Section */}
         <div className="mb-8 rounded-xl border bg-card p-6 shadow-sm animate-slide-up">
           <div className="grid gap-4 md:grid-cols-4">
             {/* Search */}
             <div className="relative md:col-span-2">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search schools by name or location..."
+                placeholder="Search schools..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 transition-all focus:ring-2 focus:ring-primary/20"
+                className="pl-10"
               />
             </div>
 
             {/* State Filter */}
             <Select value={selectedState} onValueChange={handleStateChange}>
-              <SelectTrigger className="transition-all hover:border-primary">
+              <SelectTrigger>
                 <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
                 <SelectValue placeholder="Select State" />
               </SelectTrigger>
@@ -145,7 +196,7 @@ const Schools = () => {
               onValueChange={setSelectedCity}
               disabled={selectedState === 'all'}
             >
-              <SelectTrigger className="transition-all hover:border-primary">
+              <SelectTrigger>
                 <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
                 <SelectValue placeholder="Select City" />
               </SelectTrigger>
@@ -181,39 +232,39 @@ const Schools = () => {
           )}
         </div>
 
-        {/* Results Count */}
+        {/* Results Count & Selection Info */}
         <div className="mb-4 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             Showing {filteredSchools.length} school{filteredSchools.length !== 1 ? 's' : ''}
-            {hasActiveFilters && ' (filtered)'}
           </p>
+          {selectedSchools.length > 0 && (
+            <Badge className="gsx-gradient text-primary-foreground animate-scale-in">
+              <CheckCircle className="mr-1 h-3 w-3" />
+              {selectedSchools.length} selected
+            </Badge>
+          )}
         </div>
 
-        {/* Schools Grid with Gridlines */}
+        {/* Schools Grid */}
         {isLoading ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
-              <div 
-                key={i} 
-                className="space-y-4 rounded-lg border border-border/50 bg-card p-6"
-                style={{ animationDelay: `${i * 100}ms` }}
-              >
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-10 w-full" />
-              </div>
+              <Skeleton key={i} className="h-24" />
             ))}
           </div>
         ) : filteredSchools && filteredSchools.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredSchools.map((school, index) => (
               <div 
                 key={school.id} 
                 className="animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` }}
+                style={{ animationDelay: `${index * 30}ms` }}
               >
-                <SchoolCard school={school} />
+                <SimpleSchoolCard 
+                  school={school} 
+                  isSelected={selectedSchools.includes(school.id)}
+                  onSelect={handleSchoolSelect}
+                />
               </div>
             ))}
           </div>
@@ -230,6 +281,29 @@ const Schools = () => {
                 Clear Filters
               </Button>
             )}
+          </div>
+        )}
+
+        {/* Floating Action Bar */}
+        {selectedSchools.length > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-slide-up">
+            <Card className="gsx-shadow-lg border-primary/20">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="text-sm">
+                  <span className="font-semibold">{selectedSchools.length}</span>
+                  <span className="text-muted-foreground ml-1">
+                    school{selectedSchools.length !== 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                <Button 
+                  className="gsx-gradient"
+                  onClick={handleProceedToBooking}
+                >
+                  Continue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
