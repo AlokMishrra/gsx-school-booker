@@ -6,44 +6,60 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, Loader2, CreditCard, ArrowLeft, Smartphone, Wallet } from 'lucide-react';
+import { CheckCircle, Loader2, CreditCard, ArrowLeft, Smartphone, MapPin } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface SchoolBooking {
+  schoolId: string;
+  schoolName: string;
+  location: string;
+  pricePerHour: number;
+  subtotal: number;
+}
 
 interface BookingDetails {
   date: string;
   startTime: string;
   endTime: string;
+  shift: string;
   hours: number;
   totalAmount: number;
-  items: Array<{
-    inventoryItemId: string;
-    itemName: string;
-    schoolName?: string;
-    quantity: number;
-    pricePerHour: number;
-    subtotal: number;
-  }>;
+  schools: SchoolBooking[];
 }
+
+const paymentMethods = [
+  {
+    id: 'upi',
+    name: 'UPI',
+    description: 'Pay using any UPI app',
+    icon: Smartphone,
+  },
+  {
+    id: 'razorpay',
+    name: 'Razorpay',
+    description: 'Cards, NetBanking, Wallets',
+    icon: CreditCard,
+  },
+];
 
 const Payment = () => {
   const navigate = useNavigate();
   const { user, collegeId } = useAuth();
-  const { clearCart } = useCart();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<string>('upi');
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi'>('razorpay');
 
   useEffect(() => {
     const stored = sessionStorage.getItem('bookingDetails');
     if (stored) {
       setBookingDetails(JSON.parse(stored));
     } else {
-      navigate('/cart');
+      navigate('/schools');
     }
   }, [navigate]);
 
@@ -55,16 +71,6 @@ const Payment = () => {
   if (!bookingDetails) {
     return null;
   }
-
-  // Group items by school
-  const itemsBySchool = bookingDetails.items.reduce((acc, item) => {
-    const schoolName = item.schoolName || 'Unknown School';
-    if (!acc[schoolName]) {
-      acc[schoolName] = [];
-    }
-    acc[schoolName].push(item);
-    return acc;
-  }, {} as Record<string, typeof bookingDetails.items>);
 
   const handlePayment = async () => {
     setLoading(true);
@@ -79,27 +85,38 @@ const Payment = () => {
           end_time: bookingDetails.endTime,
           total_amount: bookingDetails.totalAmount,
           status: 'confirmed',
+          notes: `Shift: ${bookingDetails.shift}`,
         })
         .select()
         .single();
 
       if (bookingError) throw bookingError;
 
-      // Create booking items
-      const bookingItems = bookingDetails.items.map((item) => ({
-        booking_id: booking.id,
-        inventory_item_id: item.inventoryItemId,
-        quantity: item.quantity,
-        hours: bookingDetails.hours,
-        price_per_hour: item.pricePerHour,
-        subtotal: item.subtotal,
-      }));
+      // Get inventory items for each school
+      const schoolIds = bookingDetails.schools.map(s => s.schoolId);
+      const { data: inventoryItems } = await supabase
+        .from('inventory_items')
+        .select('id, school_id, price_per_hour')
+        .in('school_id', schoolIds)
+        .eq('is_active', true);
 
-      const { error: itemsError } = await supabase
-        .from('booking_items')
-        .insert(bookingItems);
+      if (inventoryItems && inventoryItems.length > 0) {
+        // Create booking items for each school's inventory
+        const bookingItems = inventoryItems.map((item) => ({
+          booking_id: booking.id,
+          inventory_item_id: item.id,
+          quantity: 1,
+          hours: bookingDetails.hours,
+          price_per_hour: Number(item.price_per_hour),
+          subtotal: Number(item.price_per_hour) * bookingDetails.hours,
+        }));
 
-      if (itemsError) throw itemsError;
+        const { error: itemsError } = await supabase
+          .from('booking_items')
+          .insert(bookingItems);
+
+        if (itemsError) throw itemsError;
+      }
 
       // Create payment record
       const { error: paymentError } = await supabase
@@ -108,17 +125,15 @@ const Payment = () => {
           booking_id: booking.id,
           amount: bookingDetails.totalAmount,
           status: 'completed',
-          razorpay_payment_id: paymentMethod === 'upi' 
-            ? `upi_${Date.now()}` 
-            : `razorpay_${Date.now()}`,
+          razorpay_payment_id: paymentMethod === 'upi' ? `upi_${Date.now()}` : `rzp_${Date.now()}`,
         });
 
       if (paymentError) throw paymentError;
 
       setBookingId(booking.id);
       setPaymentComplete(true);
-      clearCart();
       sessionStorage.removeItem('bookingDetails');
+      sessionStorage.removeItem('selectedSchools');
 
       toast({
         title: 'Booking Confirmed!',
@@ -141,12 +156,12 @@ const Payment = () => {
         <div className="container py-12">
           <Card className="mx-auto max-w-lg text-center animate-scale-in">
             <CardContent className="pt-12">
-              <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-gsx-success/10 animate-pulse">
+              <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-gsx-success/10 animate-bounce">
                 <CheckCircle className="h-10 w-10 text-gsx-success" />
               </div>
               <h1 className="mb-2 text-2xl font-bold">Booking Confirmed!</h1>
               <p className="mb-6 text-muted-foreground">
-                Your booking has been successfully confirmed. You will receive a confirmation email shortly.
+                Your booking for {bookingDetails.schools.length} school{bookingDetails.schools.length !== 1 ? 's' : ''} has been confirmed.
               </p>
               <div className="mb-6 rounded-lg bg-muted p-4">
                 <p className="text-sm text-muted-foreground">Booking ID</p>
@@ -157,7 +172,7 @@ const Payment = () => {
                   View My Bookings
                 </Button>
                 <Button variant="outline" className="w-full" onClick={() => navigate('/schools')}>
-                  Browse More Schools
+                  Book More Schools
                 </Button>
               </div>
             </CardContent>
@@ -194,33 +209,32 @@ const Payment = () => {
                   <span className="font-medium">{bookingDetails.date}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Time</span>
-                  <span className="font-medium">
-                    {bookingDetails.startTime} - {bookingDetails.endTime}
-                  </span>
+                  <span className="text-muted-foreground">Shift</span>
+                  <span className="font-medium">{bookingDetails.shift}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Duration</span>
-                  <span className="font-medium">
-                    {bookingDetails.hours} hour{bookingDetails.hours !== 1 ? 's' : ''}
-                  </span>
+                  <span className="font-medium">{bookingDetails.hours} hours</span>
                 </div>
               </div>
 
-              {/* Items grouped by school */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Items by School</h4>
-                {Object.entries(itemsBySchool).map(([schoolName, items]) => (
-                  <div key={schoolName} className="rounded-lg border p-3 space-y-2">
-                    <p className="font-medium text-sm text-primary">{schoolName}</p>
-                    {items.map((item, index) => (
-                      <div key={index} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {item.quantity}x {item.itemName}
-                        </span>
-                        <span>₹{item.subtotal}</span>
-                      </div>
-                    ))}
+              {/* Schools List */}
+              <div className="space-y-3">
+                <h4 className="font-medium">Schools ({bookingDetails.schools.length})</h4>
+                {bookingDetails.schools.map((school, index) => (
+                  <div 
+                    key={school.schoolId} 
+                    className="flex justify-between p-3 rounded-lg border animate-fade-in"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <div>
+                      <p className="font-medium">{school.schoolName}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {school.location}
+                      </p>
+                    </div>
+                    <span className="font-medium text-primary">₹{school.subtotal.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
@@ -228,7 +242,7 @@ const Payment = () => {
               <div className="border-t pt-4">
                 <div className="flex justify-between text-xl font-bold">
                   <span>Total Amount</span>
-                  <span className="gsx-gradient-text">₹{bookingDetails.totalAmount}</span>
+                  <span className="gsx-gradient-text">₹{bookingDetails.totalAmount.toLocaleString()}</span>
                 </div>
               </div>
             </CardContent>
@@ -237,59 +251,48 @@ const Payment = () => {
           {/* Payment Section */}
           <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5" />
-                Payment Method
-              </CardTitle>
+              <CardTitle>Payment Method</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Payment Method Selection */}
-              <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as 'razorpay' | 'upi')}>
-                <div className={`flex items-center space-x-3 rounded-lg border p-4 cursor-pointer transition-all ${paymentMethod === 'razorpay' ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}>
-                  <RadioGroupItem value="razorpay" id="razorpay" />
-                  <Label htmlFor="razorpay" className="flex items-center gap-3 cursor-pointer flex-1">
-                    <CreditCard className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Razorpay</p>
-                      <p className="text-sm text-muted-foreground">Cards, Net Banking, Wallets</p>
+              <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
+                <div className="space-y-3">
+                  {paymentMethods.map((method) => (
+                    <div key={method.id}>
+                      <RadioGroupItem
+                        value={method.id}
+                        id={method.id}
+                        className="peer sr-only"
+                      />
+                      <Label
+                        htmlFor={method.id}
+                        className={cn(
+                          "flex items-center gap-4 rounded-lg border-2 p-4 cursor-pointer transition-all hover:border-primary/50",
+                          paymentMethod === method.id
+                            ? "border-primary bg-primary/5"
+                            : "border-border"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-12 w-12 rounded-lg flex items-center justify-center transition-colors",
+                          paymentMethod === method.id ? "gsx-gradient" : "bg-muted"
+                        )}>
+                          <method.icon className={cn(
+                            "h-6 w-6",
+                            paymentMethod === method.id ? "text-primary-foreground" : "text-muted-foreground"
+                          )} />
+                        </div>
+                        <div>
+                          <p className="font-semibold">{method.name}</p>
+                          <p className="text-sm text-muted-foreground">{method.description}</p>
+                        </div>
+                      </Label>
                     </div>
-                  </Label>
-                </div>
-                
-                <div className={`flex items-center space-x-3 rounded-lg border p-4 cursor-pointer transition-all ${paymentMethod === 'upi' ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}>
-                  <RadioGroupItem value="upi" id="upi" />
-                  <Label htmlFor="upi" className="flex items-center gap-3 cursor-pointer flex-1">
-                    <Smartphone className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">UPI</p>
-                      <p className="text-sm text-muted-foreground">Google Pay, PhonePe, Paytm, etc.</p>
-                    </div>
-                  </Label>
+                  ))}
                 </div>
               </RadioGroup>
 
-              {/* Payment Info Box */}
-              <div className="rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 text-center">
-                {paymentMethod === 'upi' ? (
-                  <>
-                    <Smartphone className="mx-auto mb-4 h-12 w-12 text-primary" />
-                    <p className="font-medium">Pay via UPI</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Scan QR code or enter UPI ID
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                    <p className="text-muted-foreground">
-                      Click the button below to proceed with Razorpay payment
-                    </p>
-                  </>
-                )}
-              </div>
-
               <Button 
-                className="w-full gsx-gradient text-lg py-6 transition-transform hover:scale-[1.02] active:scale-[0.98]" 
+                className="w-full gsx-gradient text-lg py-6" 
                 onClick={handlePayment}
                 disabled={loading}
               >
@@ -300,15 +303,13 @@ const Payment = () => {
                   </>
                 ) : (
                   <>
-                    Pay ₹{bookingDetails.totalAmount}
+                    Pay ₹{bookingDetails.totalAmount.toLocaleString()}
                   </>
                 )}
               </Button>
 
               <p className="text-center text-xs text-muted-foreground">
-                {paymentMethod === 'upi' 
-                  ? 'Secure UPI payment' 
-                  : 'Secure payment powered by Razorpay'}
+                Secure payment • 100% Safe
               </p>
             </CardContent>
           </Card>
