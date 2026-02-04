@@ -1,11 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { Building2, Calendar, CreditCard, Users, TrendingUp } from 'lucide-react';
+import { 
+  Building2, Calendar, CreditCard, Users, TrendingUp, 
+  Plus, ArrowRight, Clock, CheckCircle, XCircle, AlertCircle 
+} from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -16,14 +21,17 @@ import {
 } from '@/components/ui/table';
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
+
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
-      const [schoolsRes, collegesRes, bookingsRes, paymentsRes] = await Promise.all([
+      const [schoolsRes, collegesRes, bookingsRes, paymentsRes, pendingRes] = await Promise.all([
         supabase.from('schools').select('id', { count: 'exact' }),
         supabase.from('colleges').select('id', { count: 'exact' }),
         supabase.from('bookings').select('id, total_amount', { count: 'exact' }),
         supabase.from('payments').select('amount').eq('status', 'completed'),
+        supabase.from('bookings').select('id', { count: 'exact' }).eq('status', 'pending'),
       ]);
 
       const totalRevenue = paymentsRes.data?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
@@ -33,6 +41,7 @@ const AdminDashboard = () => {
         colleges: collegesRes.count || 0,
         bookings: bookingsRes.count || 0,
         revenue: totalRevenue,
+        pending: pendingRes.count || 0,
       };
     },
   });
@@ -42,10 +51,7 @@ const AdminDashboard = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select(`
-          *,
-          colleges (name, email)
-        `)
+        .select(`*, colleges (name, email)`)
         .order('created_at', { ascending: false })
         .limit(5);
       if (error) throw error;
@@ -53,21 +59,15 @@ const AdminDashboard = () => {
     },
   });
 
-  // College Analytics - bookings by college
   const { data: collegeAnalytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ['admin-college-analytics'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select(`
-          total_amount,
-          status,
-          colleges (id, name, email)
-        `);
+        .select(`total_amount, status, colleges (id, name, email)`);
       
       if (error) throw error;
 
-      // Aggregate by college
       const collegeStats: Record<string, {
         name: string;
         email: string;
@@ -101,9 +101,39 @@ const AdminDashboard = () => {
     },
   });
 
+  // Pending payments query
+  const { data: pendingPayments } = useQuery({
+    queryKey: ['admin-pending-payments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select(`*, bookings (colleges (name))`)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+      case 'completed':
+        return <CheckCircle className="h-4 w-4 text-gsx-success" />;
+      case 'pending':
+        return <Clock className="h-4 w-4 text-gsx-warning" />;
+      case 'cancelled':
+        return <XCircle className="h-4 w-4 text-destructive" />;
+      default:
+        return <AlertCircle className="h-4 w-4" />;
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed':
+      case 'completed':
         return 'bg-gsx-success text-gsx-success-foreground';
       case 'pending':
         return 'bg-gsx-warning text-gsx-warning-foreground';
@@ -117,9 +147,67 @@ const AdminDashboard = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="animate-fade-in">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Overview of your GSX platform</p>
+        <div className="flex items-center justify-between animate-fade-in">
+          <div>
+            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+            <p className="text-muted-foreground">Overview of your GSX platform</p>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid gap-4 md:grid-cols-4 animate-fade-in" style={{ animationDelay: '50ms' }}>
+          <Button 
+            variant="outline" 
+            className="h-auto p-4 justify-start gap-3"
+            onClick={() => navigate('/admin/schools')}
+          >
+            <div className="h-10 w-10 rounded-lg gsx-gradient flex items-center justify-center">
+              <Plus className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold">Add School</p>
+              <p className="text-xs text-muted-foreground">Add new school</p>
+            </div>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-auto p-4 justify-start gap-3"
+            onClick={() => navigate('/admin/bookings')}
+          >
+            <div className="h-10 w-10 rounded-lg bg-gsx-warning/20 flex items-center justify-center">
+              <Clock className="h-5 w-5 text-gsx-warning" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold">Pending ({stats?.pending || 0})</p>
+              <p className="text-xs text-muted-foreground">Review bookings</p>
+            </div>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-auto p-4 justify-start gap-3"
+            onClick={() => navigate('/admin/bulk')}
+          >
+            <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-accent-foreground" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold">Bulk Import</p>
+              <p className="text-xs text-muted-foreground">CSV upload</p>
+            </div>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-auto p-4 justify-start gap-3"
+            onClick={() => navigate('/admin/reports')}
+          >
+            <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold">Reports</p>
+              <p className="text-xs text-muted-foreground">View analytics</p>
+            </div>
+          </Button>
         </div>
 
         {/* Stats Cards */}
@@ -181,8 +269,11 @@ const AdminDashboard = () => {
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Recent Bookings */}
           <Card className="animate-slide-up">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Bookings</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/bookings')}>
+                View All <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </CardHeader>
             <CardContent>
               {bookingsLoading ? (
@@ -192,22 +283,25 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               ) : recentBookings && recentBookings.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {recentBookings.map((booking: any, index: number) => (
                     <div 
                       key={booking.id} 
-                      className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors animate-fade-in"
+                      className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors animate-fade-in"
                       style={{ animationDelay: `${index * 50}ms` }}
                     >
-                      <div>
-                        <p className="font-medium">{booking.colleges?.name || 'Unknown College'}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(booking.booking_date), 'PPP')} • {booking.start_time} - {booking.end_time}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        {getStatusIcon(booking.status)}
+                        <div>
+                          <p className="font-medium text-sm">{booking.colleges?.name || 'Unknown'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(booking.booking_date), 'MMM dd')} • {booking.start_time}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <span className="font-medium">₹{booking.total_amount}</span>
-                        <Badge className={getStatusColor(booking.status)}>
+                      <div className="text-right">
+                        <p className="font-medium text-sm">₹{Number(booking.total_amount).toLocaleString()}</p>
+                        <Badge className={`text-xs ${getStatusColor(booking.status)}`}>
                           {booking.status}
                         </Badge>
                       </div>
@@ -225,7 +319,7 @@ const AdminDashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-primary" />
-                College Booking Analytics
+                Top Colleges by Spending
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -249,7 +343,7 @@ const AdminDashboard = () => {
                       <TableRow key={index} className="animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{college.name}</p>
+                            <p className="font-medium text-sm">{college.name}</p>
                             <p className="text-xs text-muted-foreground">{college.email}</p>
                           </div>
                         </TableCell>
@@ -269,6 +363,38 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Pending Payments */}
+        {pendingPayments && pendingPayments.length > 0 && (
+          <Card className="animate-slide-up border-gsx-warning" style={{ animationDelay: '150ms' }}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-gsx-warning">
+                <AlertCircle className="h-5 w-5" />
+                Pending UPI Payments ({pendingPayments.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {pendingPayments.map((payment: any) => (
+                  <div key={payment.id} className="flex items-center justify-between rounded-lg border border-gsx-warning/30 bg-gsx-warning/5 p-3">
+                    <div>
+                      <p className="font-medium text-sm">{payment.bookings?.colleges?.name || 'Unknown'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Waiting for UPI confirmation
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">₹{Number(payment.amount).toLocaleString()}</p>
+                      <Badge variant="outline" className="text-gsx-warning border-gsx-warning">
+                        Pending
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AdminLayout>
   );
