@@ -10,14 +10,9 @@ const steps = [
     description: 'Choose schools from different cities by selecting them from the list',
   },
   {
-    icon: Calendar,
-    title: 'Pick Date & Shift',
-    description: 'Select your preferred date and shift (First Half or Second Half)',
-  },
-  {
     icon: CreditCard,
-    title: 'Pay & Confirm',
-    description: 'Review your selection, pay via UPI or Razorpay, and get instant confirmation',
+    title: 'Pay & Book',
+    description: 'Select date, shift, pay via UPI or Razorpay, and get instant confirmation',
   },
 ];
 
@@ -55,7 +50,7 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
 
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold mb-2">
-              Welcome to <span className="gsx-gradient-text">GSX</span>
+              Welcome to <span className="font-black">GSX</span>
             </h2>
             <p className="text-muted-foreground">
               Let's show you how easy it is to book
@@ -69,9 +64,9 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
                 key={index}
                 className={`h-2 w-2 rounded-full transition-all duration-300 ${
                   index === currentStep
-                    ? 'w-6 gsx-gradient'
+                    ? 'w-6 bg-foreground'
                     : index < currentStep
-                    ? 'bg-primary'
+                    ? 'bg-foreground'
                     : 'bg-muted'
                 }`}
               />
@@ -80,10 +75,10 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
 
           {/* Current Step */}
           <div className="text-center mb-8 animate-slide-up" key={currentStep}>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl gsx-gradient">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-foreground">
               {(() => {
                 const StepIcon = steps[currentStep].icon;
-                return <StepIcon className="h-8 w-8 text-primary-foreground" />;
+                return <StepIcon className="h-8 w-8 text-background" />;
               })()}
             </div>
             <h3 className="text-xl font-semibold mb-2">
@@ -108,10 +103,10 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
                 }`}
               >
                 {index < currentStep ? (
-                  <CheckCircle className="h-5 w-5 text-primary" />
+                  <CheckCircle className="h-5 w-5" />
                 ) : (
-                  <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center text-xs ${
-                    index === currentStep ? 'border-primary text-primary' : 'border-muted-foreground'
+                  <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center text-xs font-medium ${
+                    index === currentStep ? 'border-foreground' : 'border-muted-foreground'
                   }`}>
                     {index + 1}
                   </div>
@@ -127,7 +122,7 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
             <Button variant="outline" onClick={handleSkip} className="flex-1">
               Skip
             </Button>
-            <Button onClick={handleNext} className="flex-1 gsx-gradient">
+            <Button onClick={handleNext} className="flex-1">
               {currentStep < steps.length - 1 ? 'Next' : 'Get Started'}
             </Button>
           </div>
