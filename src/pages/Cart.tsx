@@ -20,7 +20,7 @@ const Cart = () => {
           <p className="mb-6 text-muted-foreground">
             You need to be signed in to view your cart
           </p>
-          <Button onClick={() => navigate('/login')} className="gsx-gradient">
+          <Button onClick={() => navigate('/login')}>
             Sign In
           </Button>
         </div>
@@ -37,7 +37,7 @@ const Cart = () => {
           <p className="mb-6 text-muted-foreground">
             Browse schools and add items to your cart to get started
           </p>
-          <Button onClick={() => navigate('/schools')} className="gsx-gradient">
+          <Button onClick={() => navigate('/schools')}>
             Browse Schools
           </Button>
         </div>
@@ -157,7 +157,7 @@ const Cart = () => {
                   </p>
                 </div>
                 <Button 
-                  className="w-full gsx-gradient" 
+                  className="w-full" 
                   onClick={() => navigate('/booking')}
                 >
                   Proceed to Schedule
