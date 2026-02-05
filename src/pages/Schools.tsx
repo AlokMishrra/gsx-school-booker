@@ -11,9 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Search, MapPin, Building2, X, ArrowRight, CheckCircle } from 'lucide-react';
+import { Search, MapPin, Building2, X, ArrowRight, CheckCircle, CheckSquare, Square } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const Schools = () => {
   const navigate = useNavigate();
@@ -144,10 +145,27 @@ const Schools = () => {
     // Store selected schools in session storage
     const selectedSchoolData = schools?.filter(s => selectedSchools.includes(s.id)) || [];
     sessionStorage.setItem('selectedSchools', JSON.stringify(selectedSchoolData));
-    navigate('/booking');
+    navigate('/payment');
   };
 
   const hasActiveFilters = searchQuery || selectedState !== 'all' || selectedCity !== 'all';
+
+  // Select all visible schools
+  const handleSelectAll = () => {
+    const allVisibleIds = filteredSchools.map(s => s.id);
+    const allSelected = allVisibleIds.every(id => selectedSchools.includes(id));
+    
+    if (allSelected) {
+      // Deselect all visible
+      setSelectedSchools(prev => prev.filter(id => !allVisibleIds.includes(id)));
+    } else {
+      // Select all visible
+      setSelectedSchools(prev => [...new Set([...prev, ...allVisibleIds])]);
+    }
+  };
+
+  const allVisibleSelected = filteredSchools.length > 0 && 
+    filteredSchools.every(s => selectedSchools.includes(s.id));
 
   return (
     <MainLayout>
@@ -158,7 +176,7 @@ const Schools = () => {
         <div className="mb-8 animate-fade-in">
           <h1 className="mb-2 text-3xl font-bold">Select Schools</h1>
           <p className="text-muted-foreground">
-            Choose one or more schools from different cities to book
+            Choose schools to book and proceed directly to payment
           </p>
         </div>
 
@@ -234,11 +252,33 @@ const Schools = () => {
 
         {/* Results Count & Selection Info */}
         <div className="mb-4 flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {filteredSchools.length} school{filteredSchools.length !== 1 ? 's' : ''}
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-muted-foreground">
+              Showing {filteredSchools.length} school{filteredSchools.length !== 1 ? 's' : ''}
+            </p>
+            {filteredSchools.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                className="h-8 gap-2"
+              >
+                {allVisibleSelected ? (
+                  <>
+                    <CheckSquare className="h-4 w-4" />
+                    Deselect All
+                  </>
+                ) : (
+                  <>
+                    <Square className="h-4 w-4" />
+                    Select All ({filteredSchools.length})
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
           {selectedSchools.length > 0 && (
-            <Badge className="gsx-gradient text-primary-foreground animate-scale-in">
+            <Badge variant="secondary" className="animate-scale-in border border-primary">
               <CheckCircle className="mr-1 h-3 w-3" />
               {selectedSchools.length} selected
             </Badge>
@@ -287,7 +327,7 @@ const Schools = () => {
         {/* Floating Action Bar */}
         {selectedSchools.length > 0 && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-slide-up">
-            <Card className="gsx-shadow-lg border-primary/20">
+            <Card className="shadow-lg border-foreground/20 bg-card">
               <CardContent className="flex items-center gap-4 p-4">
                 <div className="text-sm">
                   <span className="font-semibold">{selectedSchools.length}</span>
@@ -296,10 +336,9 @@ const Schools = () => {
                   </span>
                 </div>
                 <Button 
-                  className="gsx-gradient"
                   onClick={handleProceedToBooking}
                 >
-                  Continue
+                  Proceed to Payment
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardContent>
