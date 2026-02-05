@@ -161,8 +161,8 @@ const AdminDashboard = () => {
             className="h-auto p-4 justify-start gap-3"
             onClick={() => navigate('/admin/schools')}
           >
-            <div className="h-10 w-10 rounded-lg gsx-gradient flex items-center justify-center">
-              <Plus className="h-5 w-5 text-primary-foreground" />
+            <div className="h-10 w-10 rounded-lg bg-foreground flex items-center justify-center">
+              <Plus className="h-5 w-5 text-background" />
             </div>
             <div className="text-left">
               <p className="font-semibold">Add School</p>
@@ -218,10 +218,10 @@ const AdminDashboard = () => {
             ))
           ) : (
             <>
-              <Card className="animate-fade-in hover:gsx-shadow transition-shadow">
+              <Card className="animate-fade-in hover:shadow-md transition-shadow">
                 <CardContent className="flex items-center gap-4 p-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg gsx-gradient">
-                    <Building2 className="h-6 w-6 text-primary-foreground" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-foreground">
+                    <Building2 className="h-6 w-6 text-background" />
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{stats?.schools}</p>
@@ -229,7 +229,7 @@ const AdminDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="animate-fade-in hover:gsx-shadow transition-shadow" style={{ animationDelay: '50ms' }}>
+              <Card className="animate-fade-in hover:shadow-md transition-shadow" style={{ animationDelay: '50ms' }}>
                 <CardContent className="flex items-center gap-4 p-6">
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent">
                     <Users className="h-6 w-6 text-accent-foreground" />
@@ -240,7 +240,7 @@ const AdminDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="animate-fade-in hover:gsx-shadow transition-shadow" style={{ animationDelay: '100ms' }}>
+              <Card className="animate-fade-in hover:shadow-md transition-shadow" style={{ animationDelay: '100ms' }}>
                 <CardContent className="flex items-center gap-4 p-6">
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
                     <Calendar className="h-6 w-6 text-muted-foreground" />
@@ -251,7 +251,7 @@ const AdminDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="animate-fade-in hover:gsx-shadow transition-shadow" style={{ animationDelay: '150ms' }}>
+              <Card className="animate-fade-in hover:shadow-md transition-shadow" style={{ animationDelay: '150ms' }}>
                 <CardContent className="flex items-center gap-4 p-6">
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gsx-success/10">
                     <CreditCard className="h-6 w-6 text-gsx-success" />
@@ -318,7 +318,7 @@ const AdminDashboard = () => {
           <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
+                <TrendingUp className="h-5 w-5" />
                 Top Colleges by Spending
               </CardTitle>
             </CardHeader>
@@ -350,7 +350,7 @@ const AdminDashboard = () => {
                         <TableCell className="text-center">
                           <Badge variant="secondary">{college.confirmedBookings}/{college.totalBookings}</Badge>
                         </TableCell>
-                        <TableCell className="text-right font-medium text-primary">
+                        <TableCell className="text-right font-medium">
                           ₹{college.totalSpent.toLocaleString()}
                         </TableCell>
                       </TableRow>

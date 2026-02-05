@@ -140,14 +140,13 @@ const AdminBookings = () => {
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Total Amount</p>
-                      <p className="text-xl font-bold gsx-gradient-text">₹{booking.total_amount}</p>
+                      <p className="text-xl font-bold">₹{booking.total_amount}</p>
                     </div>
                   </div>
                   {booking.status === 'pending' && (
                     <div className="mt-4 flex gap-2">
                       <Button
                         size="sm"
-                        className="gsx-gradient"
                         onClick={() => updateStatusMutation.mutate({ id: booking.id, status: 'confirmed' })}
                       >
                         <Check className="mr-2 h-4 w-4" />

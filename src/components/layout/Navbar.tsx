@@ -28,7 +28,7 @@ export const Navbar = () => {
       <div className="container flex h-16 items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center space-x-2">
-          <span className="text-2xl font-bold gsx-gradient-text">GSX</span>
+          <span className="text-2xl font-bold">GSX</span>
           <span className="hidden text-sm text-muted-foreground sm:inline-block">
             Global ServiceX
           </span>
@@ -88,7 +88,7 @@ export const Navbar = () => {
               <Button variant="ghost" onClick={() => navigate('/login')}>
                 Sign In
               </Button>
-              <Button className="gsx-gradient" onClick={() => navigate('/register')}>
+              <Button onClick={() => navigate('/register')}>
                 Register
               </Button>
             </div>
@@ -162,7 +162,7 @@ export const Navbar = () => {
                   Sign In
                 </Button>
                 <Button 
-                  className="w-full gsx-gradient" 
+                  className="w-full" 
                   onClick={() => {
                     navigate('/register');
                     setMobileMenuOpen(false);
