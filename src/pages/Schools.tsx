@@ -141,32 +141,9 @@ const Schools = () => {
       return;
     }
 
-    if (!selectedDate) {
-      toast({
-        title: 'Select a date',
-        description: 'Please select a booking date',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!selectedShift) {
-      toast({
-        title: 'Select a shift',
-        description: 'Please select a shift (First Half or Second Half)',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Store selected schools and booking details in session storage
+    // Store selected schools in session storage
     const selectedSchoolData = schools?.filter(s => selectedSchools.includes(s.id)) || [];
-    const shiftData = shifts.find(s => s.id === selectedShift);
     sessionStorage.setItem('selectedSchools', JSON.stringify(selectedSchoolData));
-    sessionStorage.setItem('bookingDetails', JSON.stringify({
-      date: format(selectedDate, 'yyyy-MM-dd'),
-      shift: shiftData,
-    }));
     navigate('/payment');
   };
 
