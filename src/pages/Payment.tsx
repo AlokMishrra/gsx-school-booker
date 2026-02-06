@@ -502,20 +502,6 @@ const Payment = () => {
               <CardTitle>Order Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Booking Info */}
-              {bookingDetails && (
-                <div className="rounded-lg bg-muted p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Date</span>
-                    <span className="font-medium">{bookingDetails.date}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Shift</span>
-                    <span className="font-medium">{bookingDetails.shift.name} ({bookingDetails.shift.time})</span>
-                  </div>
-                </div>
-              )}
-
               {/* Selected Schools */}
               <div className="space-y-3">
                 <h4 className="font-medium">Schools ({schoolBookings.length})</h4>
@@ -532,7 +518,7 @@ const Payment = () => {
                         {school.location}
                       </p>
                     </div>
-                    <span className="font-medium">₹{school.subtotal.toLocaleString()}</span>
+                    <span className="font-medium">₹{school.price.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
