@@ -498,7 +498,7 @@ const Payment = () => {
     );
   }
 
-  // Booking Details & Payment Method Selection
+  // Payment Method Selection
   return (
     <MainLayout>
       <div className="container py-8">
@@ -511,63 +511,28 @@ const Payment = () => {
           Back to Schools
         </Button>
 
-        <h1 className="mb-8 text-3xl font-bold animate-fade-in">
-          {paymentStep === 'details' ? 'Select Date & Shift' : 'Complete Payment'}
-        </h1>
+        <h1 className="mb-8 text-3xl font-bold animate-fade-in">Complete Payment</h1>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Booking Details / Order Summary */}
+          {/* Order Summary */}
           <Card className="animate-slide-up">
             <CardHeader>
-              <CardTitle>{paymentStep === 'details' ? 'Booking Details' : 'Order Summary'}</CardTitle>
+              <CardTitle>Order Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Date Selection */}
-              <div className="space-y-2">
-                <Label>Select Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !selectedDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, 'PPP') : 'Pick a date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      disabled={(date) => date < new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Shift Selection */}
-              <div className="space-y-2">
-                <Label>Select Shift</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  {shifts.map((shift) => (
-                    <Button
-                      key={shift.id}
-                      type="button"
-                      variant={selectedShift === shift.id ? 'default' : 'outline'}
-                      className="h-auto flex-col py-4"
-                      onClick={() => setSelectedShift(shift.id)}
-                    >
-                      <span className="font-semibold">{shift.name}</span>
-                      <span className="text-xs opacity-80">{shift.time}</span>
-                    </Button>
-                  ))}
+              {/* Booking Info */}
+              {bookingDetails && (
+                <div className="rounded-lg bg-muted p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Date</span>
+                    <span className="font-medium">{bookingDetails.date}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Shift</span>
+                    <span className="font-medium">{bookingDetails.shift.name} ({bookingDetails.shift.time})</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Selected Schools */}
               <div className="space-y-3">
@@ -597,16 +562,6 @@ const Payment = () => {
                     <span>₹{totalAmount.toLocaleString()}</span>
                   </div>
                 </div>
-              )}
-
-              {paymentStep === 'details' && (
-                <Button 
-                  className="w-full mt-4" 
-                  disabled={!canProceedToPayment}
-                  onClick={() => setPaymentStep('method')}
-                >
-                  Continue to Payment
-                </Button>
               )}
             </CardContent>
           </Card>
