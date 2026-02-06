@@ -226,8 +226,8 @@ const Payment = () => {
 
       if (paymentError) throw paymentError;
 
-      setBookingId(booking.id);
-      setPaymentId(payment.id);
+      setPaymentStep('upi_waiting');
+      sessionStorage.removeItem('bookingDetails');
       setPaymentStep('upi_waiting');
 
       toast({
