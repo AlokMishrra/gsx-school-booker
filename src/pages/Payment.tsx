@@ -200,9 +200,9 @@ const Payment = () => {
           booking_id: booking.id,
           inventory_item_id: item.id,
           quantity: 1,
-          hours: selectedShiftData.hours,
+          hours: bookingDetails.shift.hours,
           price_per_hour: Number(item.price_per_hour),
-          subtotal: Number(item.price_per_hour) * selectedShiftData.hours,
+          subtotal: Number(item.price_per_hour) * bookingDetails.shift.hours,
         }));
 
         const { error: itemsError } = await supabase
