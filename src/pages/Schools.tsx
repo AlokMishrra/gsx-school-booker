@@ -20,6 +20,11 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, addDays } from 'date-fns';
 
+const shifts = [
+  { id: 'shift1', name: 'First Half', time: '08:00 AM - 01:00 PM', startTime: '08:00:00', endTime: '13:00:00', hours: 5 },
+  { id: 'shift2', name: 'Second Half', time: '02:00 PM - 07:00 PM', startTime: '14:00:00', endTime: '19:00:00', hours: 5 },
+];
+
 const Schools = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -29,6 +34,8 @@ const Schools = () => {
   const [selectedCity, setSelectedCity] = useState<string>('all');
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
+  const [selectedShift, setSelectedShift] = useState<string>('');
 
   // Check if user has seen onboarding
   useEffect(() => {
