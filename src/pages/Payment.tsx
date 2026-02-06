@@ -656,7 +656,6 @@ const Payment = () => {
                 </p>
               </CardContent>
             </Card>
-          )}
         </div>
       </div>
     </MainLayout>
