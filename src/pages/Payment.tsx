@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, Loader2, CreditCard, ArrowLeft, Smartphone, MapPin, Clock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
 interface SelectedSchool {
   id: string;
@@ -21,24 +22,11 @@ interface SelectedSchool {
   state?: string | null;
 }
 
-interface BookingDetails {
-  date: string;
-  shift: {
-    id: string;
-    name: string;
-    time: string;
-    startTime: string;
-    endTime: string;
-    hours: number;
-  };
-}
-
 interface SchoolBooking {
   schoolId: string;
   schoolName: string;
   location: string;
-  pricePerHour: number;
-  subtotal: number;
+  price: number;
 }
 
 type PaymentStep = 'method' | 'upi_input' | 'upi_waiting' | 'success';
@@ -49,7 +37,6 @@ const Payment = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<SelectedSchool[]>([]);
-  const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string>('upi');
   const [paymentStep, setPaymentStep] = useState<PaymentStep>('method');
   const [upiId, setUpiId] = useState('');
@@ -60,11 +47,9 @@ const Payment = () => {
 
   useEffect(() => {
     const storedSchools = sessionStorage.getItem('selectedSchools');
-    const storedDetails = sessionStorage.getItem('bookingDetails');
     
-    if (storedSchools && storedDetails) {
+    if (storedSchools) {
       setSelectedSchools(JSON.parse(storedSchools));
-      setBookingDetails(JSON.parse(storedDetails));
     } else {
       navigate('/schools');
     }
@@ -86,26 +71,24 @@ const Payment = () => {
     enabled: selectedSchools.length > 0,
   });
 
-  // Calculate pricing
+  // Calculate pricing (fixed price per school, no hours)
   useEffect(() => {
-    if (!bookingDetails || !inventoryItems) return;
+    if (!inventoryItems) return;
     
     const bookings: SchoolBooking[] = selectedSchools.map(school => {
       const item = inventoryItems.find(i => i.school_id === school.id);
-      const pricePerHour = item?.price_per_hour || 500; // Default price
-      const subtotal = pricePerHour * bookingDetails.shift.hours;
+      const price = item?.price_per_hour || 500; // Use price_per_hour as fixed price
       return {
         schoolId: school.id,
         schoolName: school.name,
         location: [school.city, school.state].filter(Boolean).join(', ') || school.address,
-        pricePerHour,
-        subtotal,
+        price,
       };
     });
     setSchoolBookings(bookings);
-  }, [selectedSchools, inventoryItems, bookingDetails]);
+  }, [selectedSchools, inventoryItems]);
 
-  const totalAmount = schoolBookings.reduce((sum, s) => sum + s.subtotal, 0);
+  const totalAmount = schoolBookings.reduce((sum, s) => sum + s.price, 0);
 
   // Poll for payment confirmation when waiting
   useEffect(() => {
@@ -146,7 +129,7 @@ const Payment = () => {
     return null;
   }
 
-  if (selectedSchools.length === 0 || !bookingDetails) {
+  if (selectedSchools.length === 0) {
     return null;
   }
 
