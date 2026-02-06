@@ -326,7 +326,7 @@ const Payment = () => {
       .eq('id', paymentId);
   };
 
-  const canProceedToPayment = selectedDate && selectedShift && schoolBookings.length > 0;
+  const canProceedToPayment = bookingDetails && schoolBookings.length > 0;
 
   // Success Screen
   if (paymentStep === 'success') {
