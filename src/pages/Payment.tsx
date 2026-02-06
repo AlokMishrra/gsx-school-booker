@@ -567,8 +567,7 @@ const Payment = () => {
           </Card>
 
           {/* Payment Method */}
-          {paymentStep === 'method' && (
-            <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
               <CardHeader>
                 <CardTitle>Select Payment Method</CardTitle>
               </CardHeader>
