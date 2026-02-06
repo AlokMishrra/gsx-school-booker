@@ -246,7 +246,7 @@ const Payment = () => {
   };
 
   const handleRazorpayPayment = async () => {
-    if (!selectedDate || !selectedShiftData) return;
+    if (!bookingDetails) return;
 
     setLoading(true);
     try {
@@ -255,12 +255,12 @@ const Payment = () => {
         .from('bookings')
         .insert({
           college_id: collegeId,
-          booking_date: format(selectedDate, 'yyyy-MM-dd'),
-          start_time: selectedShiftData.startTime,
-          end_time: selectedShiftData.endTime,
+          booking_date: bookingDetails.date,
+          start_time: bookingDetails.shift.startTime,
+          end_time: bookingDetails.shift.endTime,
           total_amount: totalAmount,
           status: 'confirmed',
-          notes: `Shift: ${selectedShiftData.name}`,
+          notes: `Shift: ${bookingDetails.shift.name}`,
         })
         .select()
         .single();
@@ -280,9 +280,9 @@ const Payment = () => {
           booking_id: booking.id,
           inventory_item_id: item.id,
           quantity: 1,
-          hours: selectedShiftData.hours,
+          hours: bookingDetails.shift.hours,
           price_per_hour: Number(item.price_per_hour),
-          subtotal: Number(item.price_per_hour) * selectedShiftData.hours,
+          subtotal: Number(item.price_per_hour) * bookingDetails.shift.hours,
         }));
 
         await supabase.from('booking_items').insert(bookingItems);
@@ -299,6 +299,7 @@ const Payment = () => {
       setBookingId(booking.id);
       setPaymentStep('success');
       sessionStorage.removeItem('selectedSchools');
+      sessionStorage.removeItem('bookingDetails');
 
       toast({
         title: 'Booking Confirmed!',
