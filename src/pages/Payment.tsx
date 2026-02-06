@@ -7,14 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, Loader2, CreditCard, ArrowLeft, Smartphone, MapPin, Clock, AlertCircle, CalendarIcon } from 'lucide-react';
+import { CheckCircle, Loader2, CreditCard, ArrowLeft, Smartphone, MapPin, Clock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, addDays } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 
 interface SelectedSchool {
@@ -25,6 +21,18 @@ interface SelectedSchool {
   state?: string | null;
 }
 
+interface BookingDetails {
+  date: string;
+  shift: {
+    id: string;
+    name: string;
+    time: string;
+    startTime: string;
+    endTime: string;
+    hours: number;
+  };
+}
+
 interface SchoolBooking {
   schoolId: string;
   schoolName: string;
@@ -33,7 +41,7 @@ interface SchoolBooking {
   subtotal: number;
 }
 
-type PaymentStep = 'details' | 'method' | 'upi_input' | 'upi_waiting' | 'success';
+type PaymentStep = 'method' | 'upi_input' | 'upi_waiting' | 'success';
 
 const Payment = () => {
   const navigate = useNavigate();
@@ -41,27 +49,22 @@ const Payment = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<SelectedSchool[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
-  const [selectedShift, setSelectedShift] = useState<string>('');
+  const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string>('upi');
-  const [paymentStep, setPaymentStep] = useState<PaymentStep>('details');
+  const [paymentStep, setPaymentStep] = useState<PaymentStep>('method');
   const [upiId, setUpiId] = useState('');
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(false);
   const [schoolBookings, setSchoolBookings] = useState<SchoolBooking[]>([]);
 
-  const shifts = [
-    { id: 'shift1', name: 'First Half', time: '08:00 AM - 01:00 PM', startTime: '08:00:00', endTime: '13:00:00', hours: 5 },
-    { id: 'shift2', name: 'Second Half', time: '02:00 PM - 07:00 PM', startTime: '14:00:00', endTime: '19:00:00', hours: 5 },
-  ];
-
-  const selectedShiftData = shifts.find(s => s.id === selectedShift);
-
   useEffect(() => {
-    const stored = sessionStorage.getItem('selectedSchools');
-    if (stored) {
-      setSelectedSchools(JSON.parse(stored));
+    const storedSchools = sessionStorage.getItem('selectedSchools');
+    const storedDetails = sessionStorage.getItem('bookingDetails');
+    
+    if (storedSchools && storedDetails) {
+      setSelectedSchools(JSON.parse(storedSchools));
+      setBookingDetails(JSON.parse(storedDetails));
     } else {
       navigate('/schools');
     }
@@ -83,14 +86,14 @@ const Payment = () => {
     enabled: selectedSchools.length > 0,
   });
 
-  // Calculate pricing when shift is selected
+  // Calculate pricing
   useEffect(() => {
-    if (!selectedShiftData || !inventoryItems) return;
+    if (!bookingDetails || !inventoryItems) return;
     
     const bookings: SchoolBooking[] = selectedSchools.map(school => {
       const item = inventoryItems.find(i => i.school_id === school.id);
       const pricePerHour = item?.price_per_hour || 500; // Default price
-      const subtotal = pricePerHour * selectedShiftData.hours;
+      const subtotal = pricePerHour * bookingDetails.shift.hours;
       return {
         schoolId: school.id,
         schoolName: school.name,
@@ -100,7 +103,7 @@ const Payment = () => {
       };
     });
     setSchoolBookings(bookings);
-  }, [selectedSchools, inventoryItems, selectedShiftData]);
+  }, [selectedSchools, inventoryItems, bookingDetails]);
 
   const totalAmount = schoolBookings.reduce((sum, s) => sum + s.subtotal, 0);
 
