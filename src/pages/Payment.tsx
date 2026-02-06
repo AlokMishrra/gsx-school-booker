@@ -149,8 +149,6 @@ const Payment = () => {
       return;
     }
 
-    if (!bookingDetails) return;
-
     setLoading(true);
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
