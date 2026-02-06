@@ -13,7 +13,6 @@ import Register from "./pages/Register";
 import Schools from "./pages/Schools";
 import SchoolDetail from "./pages/SchoolDetail";
 import Cart from "./pages/Cart";
-import Booking from "./pages/Booking";
 import Payment from "./pages/Payment";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
