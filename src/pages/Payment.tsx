@@ -308,6 +308,8 @@ const Payment = () => {
       .from('payments')
       .update({ status: 'completed' })
       .eq('id', paymentId);
+  };
+
   const canProceedToPayment = schoolBookings.length > 0;
 
   // Success Screen
