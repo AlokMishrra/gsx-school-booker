@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, Loader2, CreditCard, ArrowLeft, Smartphone, MapPin, Clock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
 interface SelectedSchool {
   id: string;
@@ -21,24 +22,11 @@ interface SelectedSchool {
   state?: string | null;
 }
 
-interface BookingDetails {
-  date: string;
-  shift: {
-    id: string;
-    name: string;
-    time: string;
-    startTime: string;
-    endTime: string;
-    hours: number;
-  };
-}
-
 interface SchoolBooking {
   schoolId: string;
   schoolName: string;
   location: string;
-  pricePerHour: number;
-  subtotal: number;
+  price: number;
 }
 
 type PaymentStep = 'method' | 'upi_input' | 'upi_waiting' | 'success';
@@ -49,7 +37,6 @@ const Payment = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<SelectedSchool[]>([]);
-  const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string>('upi');
   const [paymentStep, setPaymentStep] = useState<PaymentStep>('method');
   const [upiId, setUpiId] = useState('');
@@ -60,11 +47,9 @@ const Payment = () => {
 
   useEffect(() => {
     const storedSchools = sessionStorage.getItem('selectedSchools');
-    const storedDetails = sessionStorage.getItem('bookingDetails');
     
-    if (storedSchools && storedDetails) {
+    if (storedSchools) {
       setSelectedSchools(JSON.parse(storedSchools));
-      setBookingDetails(JSON.parse(storedDetails));
     } else {
       navigate('/schools');
     }
@@ -86,26 +71,24 @@ const Payment = () => {
     enabled: selectedSchools.length > 0,
   });
 
-  // Calculate pricing
+  // Calculate pricing (fixed price per school, no hours)
   useEffect(() => {
-    if (!bookingDetails || !inventoryItems) return;
+    if (!inventoryItems) return;
     
     const bookings: SchoolBooking[] = selectedSchools.map(school => {
       const item = inventoryItems.find(i => i.school_id === school.id);
-      const pricePerHour = item?.price_per_hour || 500; // Default price
-      const subtotal = pricePerHour * bookingDetails.shift.hours;
+      const price = item?.price_per_hour || 500; // Use price_per_hour as fixed price
       return {
         schoolId: school.id,
         schoolName: school.name,
         location: [school.city, school.state].filter(Boolean).join(', ') || school.address,
-        pricePerHour,
-        subtotal,
+        price,
       };
     });
     setSchoolBookings(bookings);
-  }, [selectedSchools, inventoryItems, bookingDetails]);
+  }, [selectedSchools, inventoryItems]);
 
-  const totalAmount = schoolBookings.reduce((sum, s) => sum + s.subtotal, 0);
+  const totalAmount = schoolBookings.reduce((sum, s) => sum + s.price, 0);
 
   // Poll for payment confirmation when waiting
   useEffect(() => {
@@ -146,7 +129,7 @@ const Payment = () => {
     return null;
   }
 
-  if (selectedSchools.length === 0 || !bookingDetails) {
+  if (selectedSchools.length === 0) {
     return null;
   }
 
@@ -166,21 +149,21 @@ const Payment = () => {
       return;
     }
 
-    if (!bookingDetails) return;
-
     setLoading(true);
     try {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      
       // Create booking with pending status
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
           college_id: collegeId,
-          booking_date: bookingDetails.date,
-          start_time: bookingDetails.shift.startTime,
-          end_time: bookingDetails.shift.endTime,
+          booking_date: today,
+          start_time: '00:00:00',
+          end_time: '23:59:59',
           total_amount: totalAmount,
-          status: 'pending', // Pending until payment confirmed
-          notes: `Shift: ${bookingDetails.shift.name} | UPI: ${upiId}`,
+          status: 'pending',
+          notes: `UPI: ${upiId} | Schools: ${schoolBookings.map(s => s.schoolName).join(', ')}`,
         })
         .select()
         .single();
@@ -200,9 +183,9 @@ const Payment = () => {
           booking_id: booking.id,
           inventory_item_id: item.id,
           quantity: 1,
-          hours: bookingDetails.shift.hours,
+          hours: 1,
           price_per_hour: Number(item.price_per_hour),
-          subtotal: Number(item.price_per_hour) * bookingDetails.shift.hours,
+          subtotal: Number(item.price_per_hour),
         }));
 
         const { error: itemsError } = await supabase
@@ -218,7 +201,7 @@ const Payment = () => {
         .insert({
           booking_id: booking.id,
           amount: totalAmount,
-          status: 'pending', // Will be updated when payment confirmed
+          status: 'pending',
           razorpay_payment_id: `upi_request_${Date.now()}`,
         })
         .select()
@@ -226,8 +209,8 @@ const Payment = () => {
 
       if (paymentError) throw paymentError;
 
-      setPaymentStep('upi_waiting');
-      sessionStorage.removeItem('bookingDetails');
+      setBookingId(booking.id);
+      setPaymentId(payment.id);
       setPaymentStep('upi_waiting');
 
       toast({
@@ -246,21 +229,21 @@ const Payment = () => {
   };
 
   const handleRazorpayPayment = async () => {
-    if (!bookingDetails) return;
-
     setLoading(true);
     try {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      
       // Create booking
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
           college_id: collegeId,
-          booking_date: bookingDetails.date,
-          start_time: bookingDetails.shift.startTime,
-          end_time: bookingDetails.shift.endTime,
+          booking_date: today,
+          start_time: '00:00:00',
+          end_time: '23:59:59',
           total_amount: totalAmount,
           status: 'confirmed',
-          notes: `Shift: ${bookingDetails.shift.name}`,
+          notes: `Schools: ${schoolBookings.map(s => s.schoolName).join(', ')}`,
         })
         .select()
         .single();
@@ -280,9 +263,9 @@ const Payment = () => {
           booking_id: booking.id,
           inventory_item_id: item.id,
           quantity: 1,
-          hours: bookingDetails.shift.hours,
+          hours: 1,
           price_per_hour: Number(item.price_per_hour),
-          subtotal: Number(item.price_per_hour) * bookingDetails.shift.hours,
+          subtotal: Number(item.price_per_hour),
         }));
 
         await supabase.from('booking_items').insert(bookingItems);
@@ -299,7 +282,6 @@ const Payment = () => {
       setBookingId(booking.id);
       setPaymentStep('success');
       sessionStorage.removeItem('selectedSchools');
-      sessionStorage.removeItem('bookingDetails');
 
       toast({
         title: 'Booking Confirmed!',
@@ -326,7 +308,7 @@ const Payment = () => {
       .eq('id', paymentId);
   };
 
-  const canProceedToPayment = bookingDetails && schoolBookings.length > 0;
+  const canProceedToPayment = schoolBookings.length > 0;
 
   // Success Screen
   if (paymentStep === 'success') {
@@ -520,20 +502,6 @@ const Payment = () => {
               <CardTitle>Order Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Booking Info */}
-              {bookingDetails && (
-                <div className="rounded-lg bg-muted p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Date</span>
-                    <span className="font-medium">{bookingDetails.date}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Shift</span>
-                    <span className="font-medium">{bookingDetails.shift.name} ({bookingDetails.shift.time})</span>
-                  </div>
-                </div>
-              )}
-
               {/* Selected Schools */}
               <div className="space-y-3">
                 <h4 className="font-medium">Schools ({schoolBookings.length})</h4>
@@ -550,7 +518,7 @@ const Payment = () => {
                         {school.location}
                       </p>
                     </div>
-                    <span className="font-medium">₹{school.subtotal.toLocaleString()}</span>
+                    <span className="font-medium">₹{school.price.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
