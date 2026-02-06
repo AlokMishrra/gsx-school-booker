@@ -175,12 +175,12 @@ const Payment = () => {
         .from('bookings')
         .insert({
           college_id: collegeId,
-          booking_date: format(selectedDate, 'yyyy-MM-dd'),
-          start_time: selectedShiftData.startTime,
-          end_time: selectedShiftData.endTime,
+          booking_date: bookingDetails.date,
+          start_time: bookingDetails.shift.startTime,
+          end_time: bookingDetails.shift.endTime,
           total_amount: totalAmount,
           status: 'pending', // Pending until payment confirmed
-          notes: `Shift: ${selectedShiftData.name} | UPI: ${upiId}`,
+          notes: `Shift: ${bookingDetails.shift.name} | UPI: ${upiId}`,
         })
         .select()
         .single();
