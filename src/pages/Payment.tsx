@@ -166,7 +166,7 @@ const Payment = () => {
       return;
     }
 
-    if (!selectedDate || !selectedShiftData) return;
+    if (!bookingDetails) return;
 
     setLoading(true);
     try {
