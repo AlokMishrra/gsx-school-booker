@@ -146,7 +146,7 @@ const Payment = () => {
     return null;
   }
 
-  if (selectedSchools.length === 0) {
+  if (selectedSchools.length === 0 || !bookingDetails) {
     return null;
   }
 
