@@ -7,14 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, Loader2, CreditCard, ArrowLeft, Smartphone, MapPin, Clock, AlertCircle, CalendarIcon } from 'lucide-react';
+import { CheckCircle, Loader2, CreditCard, ArrowLeft, Smartphone, MapPin, Clock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, addDays } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 
 interface SelectedSchool {
@@ -25,6 +21,18 @@ interface SelectedSchool {
   state?: string | null;
 }
 
+interface BookingDetails {
+  date: string;
+  shift: {
+    id: string;
+    name: string;
+    time: string;
+    startTime: string;
+    endTime: string;
+    hours: number;
+  };
+}
+
 interface SchoolBooking {
   schoolId: string;
   schoolName: string;
@@ -33,7 +41,7 @@ interface SchoolBooking {
   subtotal: number;
 }
 
-type PaymentStep = 'details' | 'method' | 'upi_input' | 'upi_waiting' | 'success';
+type PaymentStep = 'method' | 'upi_input' | 'upi_waiting' | 'success';
 
 const Payment = () => {
   const navigate = useNavigate();
@@ -41,27 +49,22 @@ const Payment = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<SelectedSchool[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
-  const [selectedShift, setSelectedShift] = useState<string>('');
+  const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string>('upi');
-  const [paymentStep, setPaymentStep] = useState<PaymentStep>('details');
+  const [paymentStep, setPaymentStep] = useState<PaymentStep>('method');
   const [upiId, setUpiId] = useState('');
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(false);
   const [schoolBookings, setSchoolBookings] = useState<SchoolBooking[]>([]);
 
-  const shifts = [
-    { id: 'shift1', name: 'First Half', time: '08:00 AM - 01:00 PM', startTime: '08:00:00', endTime: '13:00:00', hours: 5 },
-    { id: 'shift2', name: 'Second Half', time: '02:00 PM - 07:00 PM', startTime: '14:00:00', endTime: '19:00:00', hours: 5 },
-  ];
-
-  const selectedShiftData = shifts.find(s => s.id === selectedShift);
-
   useEffect(() => {
-    const stored = sessionStorage.getItem('selectedSchools');
-    if (stored) {
-      setSelectedSchools(JSON.parse(stored));
+    const storedSchools = sessionStorage.getItem('selectedSchools');
+    const storedDetails = sessionStorage.getItem('bookingDetails');
+    
+    if (storedSchools && storedDetails) {
+      setSelectedSchools(JSON.parse(storedSchools));
+      setBookingDetails(JSON.parse(storedDetails));
     } else {
       navigate('/schools');
     }
@@ -83,14 +86,14 @@ const Payment = () => {
     enabled: selectedSchools.length > 0,
   });
 
-  // Calculate pricing when shift is selected
+  // Calculate pricing
   useEffect(() => {
-    if (!selectedShiftData || !inventoryItems) return;
+    if (!bookingDetails || !inventoryItems) return;
     
     const bookings: SchoolBooking[] = selectedSchools.map(school => {
       const item = inventoryItems.find(i => i.school_id === school.id);
       const pricePerHour = item?.price_per_hour || 500; // Default price
-      const subtotal = pricePerHour * selectedShiftData.hours;
+      const subtotal = pricePerHour * bookingDetails.shift.hours;
       return {
         schoolId: school.id,
         schoolName: school.name,
@@ -100,7 +103,7 @@ const Payment = () => {
       };
     });
     setSchoolBookings(bookings);
-  }, [selectedSchools, inventoryItems, selectedShiftData]);
+  }, [selectedSchools, inventoryItems, bookingDetails]);
 
   const totalAmount = schoolBookings.reduce((sum, s) => sum + s.subtotal, 0);
 
@@ -143,7 +146,7 @@ const Payment = () => {
     return null;
   }
 
-  if (selectedSchools.length === 0) {
+  if (selectedSchools.length === 0 || !bookingDetails) {
     return null;
   }
 
@@ -163,7 +166,7 @@ const Payment = () => {
       return;
     }
 
-    if (!selectedDate || !selectedShiftData) return;
+    if (!bookingDetails) return;
 
     setLoading(true);
     try {
@@ -172,12 +175,12 @@ const Payment = () => {
         .from('bookings')
         .insert({
           college_id: collegeId,
-          booking_date: format(selectedDate, 'yyyy-MM-dd'),
-          start_time: selectedShiftData.startTime,
-          end_time: selectedShiftData.endTime,
+          booking_date: bookingDetails.date,
+          start_time: bookingDetails.shift.startTime,
+          end_time: bookingDetails.shift.endTime,
           total_amount: totalAmount,
           status: 'pending', // Pending until payment confirmed
-          notes: `Shift: ${selectedShiftData.name} | UPI: ${upiId}`,
+          notes: `Shift: ${bookingDetails.shift.name} | UPI: ${upiId}`,
         })
         .select()
         .single();
@@ -197,9 +200,9 @@ const Payment = () => {
           booking_id: booking.id,
           inventory_item_id: item.id,
           quantity: 1,
-          hours: selectedShiftData.hours,
+          hours: bookingDetails.shift.hours,
           price_per_hour: Number(item.price_per_hour),
-          subtotal: Number(item.price_per_hour) * selectedShiftData.hours,
+          subtotal: Number(item.price_per_hour) * bookingDetails.shift.hours,
         }));
 
         const { error: itemsError } = await supabase
@@ -223,8 +226,8 @@ const Payment = () => {
 
       if (paymentError) throw paymentError;
 
-      setBookingId(booking.id);
-      setPaymentId(payment.id);
+      setPaymentStep('upi_waiting');
+      sessionStorage.removeItem('bookingDetails');
       setPaymentStep('upi_waiting');
 
       toast({
@@ -243,7 +246,7 @@ const Payment = () => {
   };
 
   const handleRazorpayPayment = async () => {
-    if (!selectedDate || !selectedShiftData) return;
+    if (!bookingDetails) return;
 
     setLoading(true);
     try {
@@ -252,12 +255,12 @@ const Payment = () => {
         .from('bookings')
         .insert({
           college_id: collegeId,
-          booking_date: format(selectedDate, 'yyyy-MM-dd'),
-          start_time: selectedShiftData.startTime,
-          end_time: selectedShiftData.endTime,
+          booking_date: bookingDetails.date,
+          start_time: bookingDetails.shift.startTime,
+          end_time: bookingDetails.shift.endTime,
           total_amount: totalAmount,
           status: 'confirmed',
-          notes: `Shift: ${selectedShiftData.name}`,
+          notes: `Shift: ${bookingDetails.shift.name}`,
         })
         .select()
         .single();
@@ -277,9 +280,9 @@ const Payment = () => {
           booking_id: booking.id,
           inventory_item_id: item.id,
           quantity: 1,
-          hours: selectedShiftData.hours,
+          hours: bookingDetails.shift.hours,
           price_per_hour: Number(item.price_per_hour),
-          subtotal: Number(item.price_per_hour) * selectedShiftData.hours,
+          subtotal: Number(item.price_per_hour) * bookingDetails.shift.hours,
         }));
 
         await supabase.from('booking_items').insert(bookingItems);
@@ -296,6 +299,7 @@ const Payment = () => {
       setBookingId(booking.id);
       setPaymentStep('success');
       sessionStorage.removeItem('selectedSchools');
+      sessionStorage.removeItem('bookingDetails');
 
       toast({
         title: 'Booking Confirmed!',
@@ -322,7 +326,7 @@ const Payment = () => {
       .eq('id', paymentId);
   };
 
-  const canProceedToPayment = selectedDate && selectedShift && schoolBookings.length > 0;
+  const canProceedToPayment = bookingDetails && schoolBookings.length > 0;
 
   // Success Screen
   if (paymentStep === 'success') {
@@ -494,7 +498,7 @@ const Payment = () => {
     );
   }
 
-  // Booking Details & Payment Method Selection
+  // Payment Method Selection
   return (
     <MainLayout>
       <div className="container py-8">
@@ -507,63 +511,28 @@ const Payment = () => {
           Back to Schools
         </Button>
 
-        <h1 className="mb-8 text-3xl font-bold animate-fade-in">
-          {paymentStep === 'details' ? 'Select Date & Shift' : 'Complete Payment'}
-        </h1>
+        <h1 className="mb-8 text-3xl font-bold animate-fade-in">Complete Payment</h1>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Booking Details / Order Summary */}
+          {/* Order Summary */}
           <Card className="animate-slide-up">
             <CardHeader>
-              <CardTitle>{paymentStep === 'details' ? 'Booking Details' : 'Order Summary'}</CardTitle>
+              <CardTitle>Order Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Date Selection */}
-              <div className="space-y-2">
-                <Label>Select Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !selectedDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, 'PPP') : 'Pick a date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      disabled={(date) => date < new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Shift Selection */}
-              <div className="space-y-2">
-                <Label>Select Shift</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  {shifts.map((shift) => (
-                    <Button
-                      key={shift.id}
-                      type="button"
-                      variant={selectedShift === shift.id ? 'default' : 'outline'}
-                      className="h-auto flex-col py-4"
-                      onClick={() => setSelectedShift(shift.id)}
-                    >
-                      <span className="font-semibold">{shift.name}</span>
-                      <span className="text-xs opacity-80">{shift.time}</span>
-                    </Button>
-                  ))}
+              {/* Booking Info */}
+              {bookingDetails && (
+                <div className="rounded-lg bg-muted p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Date</span>
+                    <span className="font-medium">{bookingDetails.date}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Shift</span>
+                    <span className="font-medium">{bookingDetails.shift.name} ({bookingDetails.shift.time})</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Selected Schools */}
               <div className="space-y-3">
@@ -594,22 +563,11 @@ const Payment = () => {
                   </div>
                 </div>
               )}
-
-              {paymentStep === 'details' && (
-                <Button 
-                  className="w-full mt-4" 
-                  disabled={!canProceedToPayment}
-                  onClick={() => setPaymentStep('method')}
-                >
-                  Continue to Payment
-                </Button>
-              )}
             </CardContent>
           </Card>
 
           {/* Payment Method */}
-          {paymentStep === 'method' && (
-            <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
               <CardHeader>
                 <CardTitle>Select Payment Method</CardTitle>
               </CardHeader>
@@ -698,7 +656,6 @@ const Payment = () => {
                 </p>
               </CardContent>
             </Card>
-          )}
         </div>
       </div>
     </MainLayout>

@@ -11,10 +11,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Search, MapPin, Building2, X, ArrowRight, CheckCircle, CheckSquare, Square } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Search, MapPin, Building2, X, ArrowRight, CheckCircle, CheckSquare, Square, CalendarIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
+import { format, addDays } from 'date-fns';
+
+const shifts = [
+  { id: 'shift1', name: 'First Half', time: '08:00 AM - 01:00 PM', startTime: '08:00:00', endTime: '13:00:00', hours: 5 },
+  { id: 'shift2', name: 'Second Half', time: '02:00 PM - 07:00 PM', startTime: '14:00:00', endTime: '19:00:00', hours: 5 },
+];
 
 const Schools = () => {
   const navigate = useNavigate();
@@ -25,6 +34,8 @@ const Schools = () => {
   const [selectedCity, setSelectedCity] = useState<string>('all');
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
+  const [selectedShift, setSelectedShift] = useState<string>('');
 
   // Check if user has seen onboarding
   useEffect(() => {
@@ -142,9 +153,32 @@ const Schools = () => {
       return;
     }
 
-    // Store selected schools in session storage
+    if (!selectedDate) {
+      toast({
+        title: 'Select a date',
+        description: 'Please select a booking date',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!selectedShift) {
+      toast({
+        title: 'Select a shift',
+        description: 'Please select a shift (First Half or Second Half)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Store selected schools and booking details in session storage
     const selectedSchoolData = schools?.filter(s => selectedSchools.includes(s.id)) || [];
+    const shiftData = shifts.find(s => s.id === selectedShift);
     sessionStorage.setItem('selectedSchools', JSON.stringify(selectedSchoolData));
+    sessionStorage.setItem('bookingDetails', JSON.stringify({
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      shift: shiftData,
+    }));
     navigate('/payment');
   };
 
@@ -324,19 +358,71 @@ const Schools = () => {
           </div>
         )}
 
-        {/* Floating Action Bar */}
+        {/* Floating Action Bar with Date & Shift Selection */}
         {selectedSchools.length > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-slide-up">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-slide-up w-full max-w-2xl px-4">
             <Card className="shadow-lg border-foreground/20 bg-card">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="text-sm">
-                  <span className="font-semibold">{selectedSchools.length}</span>
-                  <span className="text-muted-foreground ml-1">
-                    school{selectedSchools.length !== 1 ? 's' : ''} selected
-                  </span>
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm">
+                    <span className="font-semibold">{selectedSchools.length}</span>
+                    <span className="text-muted-foreground ml-1">
+                      school{selectedSchools.length !== 1 ? 's' : ''} selected
+                    </span>
+                  </div>
+                  <Badge variant="secondary">
+                    <CheckCircle className="mr-1 h-3 w-3" />
+                    Ready to book
+                  </Badge>
                 </div>
+
+                {/* Date & Shift Selection */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Date Picker */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? format(selectedDate, 'MMM d, yyyy') : 'Select date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Shift Selection */}
+                  <Select value={selectedShift} onValueChange={setSelectedShift}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select shift" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {shifts.map((shift) => (
+                        <SelectItem key={shift.id} value={shift.id}>
+                          {shift.name} ({shift.time})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <Button 
+                  className="w-full"
                   onClick={handleProceedToBooking}
+                  disabled={!selectedDate || !selectedShift}
                 >
                   Proceed to Payment
                   <ArrowRight className="ml-2 h-4 w-4" />
