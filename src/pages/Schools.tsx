@@ -27,7 +27,7 @@ const Schools = () => {
 
   // Check if user has seen onboarding
   useEffect(() => {
-    const hasSeenOnboarding = localStorage.getItem('gsx_onboarding_complete');
+    const hasSeenOnboarding = localStorage.getItem('zs_onboarding_complete');
     if (!hasSeenOnboarding) {
       setShowOnboarding(true);
     }
