@@ -34,7 +34,7 @@ const Schools = () => {
   }, []);
 
   const handleOnboardingComplete = () => {
-    localStorage.setItem('gsx_onboarding_complete', 'true');
+    localStorage.setItem('zs_onboarding_complete', 'true');
     setShowOnboarding(false);
   };
 

@@ -48,7 +48,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           {/* Logo */}
           <div className="flex h-16 items-center justify-between border-b px-6">
             <Link to="/admin" className="flex items-center space-x-2">
-              <span className="text-2xl font-bold">GSX</span>
+              <span className="text-lg font-bold">Zero's School</span>
               <span className="text-xs text-muted-foreground">Admin</span>
             </Link>
             <Button
