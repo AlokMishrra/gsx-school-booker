@@ -282,12 +282,12 @@ const Booking = () => {
                 <div className="border-t pt-4">
                   <div className="flex justify-between text-lg font-semibold">
                     <span>Total Amount</span>
-                    <span>₹{totalAmount.toLocaleString()}</span>
+                    <span className="gsx-gradient-text">₹{totalAmount.toLocaleString()}</span>
                   </div>
                 </div>
 
                 <Button 
-                  className="w-full" 
+                  className="w-full gsx-gradient" 
                   disabled={!isValid}
                   onClick={handleProceedToPayment}
                 >

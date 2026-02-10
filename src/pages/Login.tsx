@@ -65,7 +65,7 @@ const Login = () => {
         <Card className="w-full max-w-md animate-scale-in">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">
-              Welcome to <span className="font-black">GSX</span>
+              Welcome to <span className="gsx-gradient-text">GSX</span>
             </CardTitle>
             <CardDescription>
               Sign in to your account to continue booking
@@ -110,7 +110,7 @@ const Login = () => {
                 />
                 <Button 
                   type="submit" 
-                  className="w-full" 
+                  className="w-full gsx-gradient" 
                   disabled={loading}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

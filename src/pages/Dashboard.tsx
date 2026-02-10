@@ -101,7 +101,7 @@ const Dashboard = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="mb-2 text-3xl font-bold">
-            Welcome, <span className="font-black">{college?.name || 'College'}</span>
+            Welcome, <span className="gsx-gradient-text">{college?.name || 'College'}</span>
           </h1>
           <p className="text-muted-foreground">
             Manage your bookings and view your history
@@ -112,8 +112,8 @@ const Dashboard = () => {
         <div className="mb-8 grid gap-4 md:grid-cols-3">
           <Card>
             <CardContent className="flex items-center gap-4 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-foreground">
-                <Calendar className="h-6 w-6 text-background" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg gsx-gradient">
+                <Calendar className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{upcomingBookings.length}</p>
@@ -221,7 +221,7 @@ const Dashboard = () => {
               <CardContent className="py-12 text-center">
                 <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                 <p className="text-muted-foreground">No upcoming bookings</p>
-                <Button className="mt-4" onClick={() => navigate('/schools')}>
+                <Button className="mt-4 gsx-gradient" onClick={() => navigate('/schools')}>
                   Browse Schools
                 </Button>
               </CardContent>

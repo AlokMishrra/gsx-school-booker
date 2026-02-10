@@ -254,7 +254,7 @@ const AdminSchools = () => {
             }
           }}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="gsx-gradient">
                 <Plus className="mr-2 h-4 w-4" />
                 Add School
               </Button>
@@ -344,7 +344,7 @@ const AdminSchools = () => {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full" disabled={createSchoolMutation.isPending || updateSchoolMutation.isPending}>
+                  <Button type="submit" className="w-full gsx-gradient" disabled={createSchoolMutation.isPending || updateSchoolMutation.isPending}>
                     {editingSchool ? 'Update School' : 'Add School'}
                   </Button>
                 </form>
@@ -389,7 +389,7 @@ const AdminSchools = () => {
               </Button>
               <Dialog open={bulkEditDialogOpen} onOpenChange={setBulkEditDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm">
+                  <Button size="sm" className="gsx-gradient">
                     <Edit2 className="mr-2 h-4 w-4" />
                     Bulk Edit Price
                   </Button>
@@ -413,7 +413,7 @@ const AdminSchools = () => {
                       </div>
                     </div>
                     <Button 
-                      className="w-full" 
+                      className="w-full gsx-gradient" 
                       onClick={handleBulkPriceUpdate}
                       disabled={!bulkPrice || bulkUpdatePriceMutation.isPending}
                     >
@@ -455,8 +455,8 @@ const AdminSchools = () => {
             {filteredSchools.map((school: any, index: number) => (
               <Card 
                 key={school.id} 
-                className={`transition-all hover:shadow-md animate-fade-in ${
-                  selectedSchools.includes(school.id) ? 'ring-2 ring-foreground' : ''
+                className={`transition-all hover:gsx-shadow animate-fade-in ${
+                  selectedSchools.includes(school.id) ? 'ring-2 ring-primary' : ''
                 }`}
                 style={{ animationDelay: `${index * 30}ms` }}
               >
@@ -507,7 +507,7 @@ const AdminSchools = () => {
               <p className="text-muted-foreground">
                 {searchQuery || filterState !== 'all' ? 'No schools match your search' : 'No schools added yet'}
               </p>
-              <Button className="mt-4" onClick={() => setSchoolDialogOpen(true)}>
+              <Button className="mt-4 gsx-gradient" onClick={() => setSchoolDialogOpen(true)}>
                 Add Your First School
               </Button>
             </CardContent>
