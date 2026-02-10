@@ -1,14 +1,19 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { SchoolCard } from '@/components/schools/SchoolCard';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Search, MapPin, Building2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const Schools = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedState, setSelectedState] = useState<string>('all');
+  const [selectedCity, setSelectedCity] = useState<string>('all');
 
   const { data: schools, isLoading } = useQuery({
     queryKey: ['schools'],
@@ -33,38 +38,166 @@ const Schools = () => {
     },
   });
 
-  const filteredSchools = schools?.filter((school) =>
-    school.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    school.address.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Extract unique states and cities
+  const { states, citiesByState } = useMemo(() => {
+    if (!schools) return { states: [], citiesByState: {} };
+    
+    const stateSet = new Set<string>();
+    const cityMap: Record<string, Set<string>> = {};
+    
+    schools.forEach(school => {
+      if (school.state) {
+        stateSet.add(school.state);
+        if (!cityMap[school.state]) {
+          cityMap[school.state] = new Set();
+        }
+        if (school.city) {
+          cityMap[school.state].add(school.city);
+        }
+      }
+    });
+    
+    const citiesByState: Record<string, string[]> = {};
+    Object.entries(cityMap).forEach(([state, cities]) => {
+      citiesByState[state] = Array.from(cities).sort();
+    });
+    
+    return {
+      states: Array.from(stateSet).sort(),
+      citiesByState,
+    };
+  }, [schools]);
+
+  const availableCities = selectedState !== 'all' ? citiesByState[selectedState] || [] : [];
+
+  const filteredSchools = useMemo(() => {
+    if (!schools) return [];
+    
+    return schools.filter((school) => {
+      const matchesSearch = 
+        school.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        school.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (school.city?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (school.state?.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesState = selectedState === 'all' || school.state === selectedState;
+      const matchesCity = selectedCity === 'all' || school.city === selectedCity;
+      
+      return matchesSearch && matchesState && matchesCity;
+    });
+  }, [schools, searchQuery, selectedState, selectedCity]);
+
+  const handleStateChange = (value: string) => {
+    setSelectedState(value);
+    setSelectedCity('all'); // Reset city when state changes
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedState('all');
+    setSelectedCity('all');
+  };
+
+  const hasActiveFilters = searchQuery || selectedState !== 'all' || selectedCity !== 'all';
 
   return (
     <MainLayout>
       <div className="container py-8">
-        {/* Header */}
-        <div className="mb-8">
+        {/* Header with animation */}
+        <div className="mb-8 animate-fade-in">
           <h1 className="mb-2 text-3xl font-bold">Browse Schools</h1>
           <p className="text-muted-foreground">
-            Explore available schools and their facilities for booking
+            Explore available schools and their facilities for booking across India
           </p>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-8 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search schools by name or location..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+        {/* Filters Section with Grid */}
+        <div className="mb-8 rounded-xl border bg-card p-6 shadow-sm animate-slide-up">
+          <div className="grid gap-4 md:grid-cols-4">
+            {/* Search */}
+            <div className="relative md:col-span-2">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search schools by name or location..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 transition-all focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            {/* State Filter */}
+            <Select value={selectedState} onValueChange={handleStateChange}>
+              <SelectTrigger className="transition-all hover:border-primary">
+                <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                <SelectValue placeholder="Select State" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All States</SelectItem>
+                {states.map((state) => (
+                  <SelectItem key={state} value={state}>{state}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* City Filter */}
+            <Select 
+              value={selectedCity} 
+              onValueChange={setSelectedCity}
+              disabled={selectedState === 'all'}
+            >
+              <SelectTrigger className="transition-all hover:border-primary">
+                <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
+                <SelectValue placeholder="Select City" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Cities</SelectItem>
+                {availableCities.map((city) => (
+                  <SelectItem key={city} value={city}>{city}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Active Filters */}
+          {hasActiveFilters && (
+            <div className="mt-4 flex flex-wrap items-center gap-2 animate-scale-in">
+              <span className="text-sm text-muted-foreground">Active filters:</span>
+              {selectedState !== 'all' && (
+                <Badge variant="secondary" className="gap-1">
+                  {selectedState}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => handleStateChange('all')} />
+                </Badge>
+              )}
+              {selectedCity !== 'all' && (
+                <Badge variant="secondary" className="gap-1">
+                  {selectedCity}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedCity('all')} />
+                </Badge>
+              )}
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-6 px-2 text-xs">
+                Clear all
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Schools Grid */}
+        {/* Results Count */}
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {filteredSchools.length} school{filteredSchools.length !== 1 ? 's' : ''}
+            {hasActiveFilters && ' (filtered)'}
+          </p>
+        </div>
+
+        {/* Schools Grid with Gridlines */}
         {isLoading ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="space-y-4 rounded-lg border p-6">
+              <div 
+                key={i} 
+                className="space-y-4 rounded-lg border border-border/50 bg-card p-6"
+                style={{ animationDelay: `${i * 100}ms` }}
+              >
                 <Skeleton className="h-6 w-3/4" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-2/3" />
@@ -74,15 +207,29 @@ const Schools = () => {
           </div>
         ) : filteredSchools && filteredSchools.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredSchools.map((school) => (
-              <SchoolCard key={school.id} school={school} />
+            {filteredSchools.map((school, index) => (
+              <div 
+                key={school.id} 
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <SchoolCard school={school} />
+              </div>
             ))}
           </div>
         ) : (
-          <div className="py-12 text-center">
+          <div className="py-12 text-center animate-fade-in">
+            <Building2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
             <p className="text-lg text-muted-foreground">
-              {searchQuery ? 'No schools found matching your search.' : 'No schools available at the moment.'}
+              {hasActiveFilters 
+                ? 'No schools found matching your filters.' 
+                : 'No schools available at the moment.'}
             </p>
+            {hasActiveFilters && (
+              <Button variant="outline" onClick={clearFilters} className="mt-4">
+                Clear Filters
+              </Button>
+            )}
           </div>
         )}
       </div>

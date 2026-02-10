@@ -242,6 +242,7 @@ export type Database = {
       schools: {
         Row: {
           address: string
+          city: string | null
           contact_email: string
           contact_phone: string
           created_at: string
@@ -249,10 +250,12 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          state: string | null
           updated_at: string
         }
         Insert: {
           address: string
+          city?: string | null
           contact_email: string
           contact_phone: string
           created_at?: string
@@ -260,10 +263,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          state?: string | null
           updated_at?: string
         }
         Update: {
           address?: string
+          city?: string | null
           contact_email?: string
           contact_phone?: string
           created_at?: string
@@ -271,6 +276,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          state?: string | null
           updated_at?: string
         }
         Relationships: []
