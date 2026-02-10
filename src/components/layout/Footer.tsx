@@ -8,7 +8,7 @@ export const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center space-x-2">
-              <span className="text-2xl font-bold">GSX</span>
+              <span className="text-2xl font-bold gsx-gradient-text">GSX</span>
             </Link>
             <p className="text-sm text-muted-foreground">
               Global ServiceX - Your trusted platform for booking school facilities and equipment.

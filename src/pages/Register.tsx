@@ -99,7 +99,7 @@ const Register = () => {
         <Card className="w-full max-w-lg animate-scale-in">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">
-              Register with <span className="font-black">GSX</span>
+              Register with <span className="gsx-gradient-text">GSX</span>
             </CardTitle>
             <CardDescription>
               Create your college account to start booking
@@ -209,7 +209,7 @@ const Register = () => {
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full" 
+                  className="w-full gsx-gradient" 
                   disabled={loading}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

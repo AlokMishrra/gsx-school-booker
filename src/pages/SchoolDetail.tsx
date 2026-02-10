@@ -153,11 +153,11 @@ const SchoolDetail = () => {
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {facilities.map((item: any) => (
-                <Card key={item.id} className="transition-all hover:shadow-md">
+                <Card key={item.id} className="transition-all hover:gsx-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <CardTitle className="text-lg">{item.name}</CardTitle>
-                      <Badge>
+                      <Badge className="gsx-gradient text-primary-foreground">
                         ₹{item.price_per_hour}/hr
                       </Badge>
                     </div>
@@ -172,7 +172,7 @@ const SchoolDetail = () => {
                       </Button>
                     ) : (
                       <Button 
-                        className="w-full" 
+                        className="w-full gsx-gradient" 
                         onClick={() => handleAddToCart(item)}
                       >
                         <ShoppingCart className="mr-2 h-4 w-4" />
@@ -197,7 +197,7 @@ const SchoolDetail = () => {
               {equipment.map((item: any) => {
                 const qty = quantities[item.id] || 1;
                 return (
-                  <Card key={item.id} className="transition-all hover:shadow-md">
+                  <Card key={item.id} className="transition-all hover:gsx-shadow">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div>
@@ -206,7 +206,7 @@ const SchoolDetail = () => {
                             {item.quantity_available} available
                           </p>
                         </div>
-                        <Badge>
+                        <Badge className="gsx-gradient text-primary-foreground">
                           ₹{item.price_per_hour}/hr
                         </Badge>
                       </div>
@@ -240,7 +240,7 @@ const SchoolDetail = () => {
                         </Button>
                       ) : (
                         <Button 
-                          className="w-full" 
+                          className="w-full gsx-gradient" 
                           onClick={() => handleAddToCart(item)}
                         >
                           <ShoppingCart className="mr-2 h-4 w-4" />
