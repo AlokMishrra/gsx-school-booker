@@ -13,6 +13,7 @@ import Register from "./pages/Register";
 import Schools from "./pages/Schools";
 import SchoolDetail from "./pages/SchoolDetail";
 import Cart from "./pages/Cart";
+import Booking from "./pages/Booking";
 import Payment from "./pages/Payment";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -43,6 +44,7 @@ const App = () => (
               {/* Protected Routes (Colleges) */}
               <Route element={<ProtectedRoute />}>
                 <Route path="/cart" element={<Cart />} />
+                <Route path="/booking" element={<Booking />} />
                 <Route path="/payment" element={<Payment />} />
                 <Route path="/dashboard" element={<Dashboard />} />
               </Route>

@@ -1,35 +1,34 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Building2, CreditCard, ArrowRight, CheckCircle, Zap } from 'lucide-react';
-import zsLogo from '@/assets/zeroschool-logo.png';
+import { Building2, Calendar, CreditCard, ArrowRight, CheckCircle } from 'lucide-react';
 
 const Index = () => {
   const features = [
     {
       icon: Building2,
-      title: 'Select Schools',
-      description: 'Browse and select from a curated network of schools with available facilities.',
+      title: 'Browse Schools',
+      description: 'Explore a wide range of schools with available facilities and equipment for your needs.',
     },
     {
-      icon: Zap,
-      title: 'Instant Booking',
-      description: 'No scheduling hassle. Select schools and proceed directly to payment.',
+      icon: Calendar,
+      title: 'Book Time Slots',
+      description: 'Select your preferred date and hourly time slots that work best for your schedule.',
     },
     {
       icon: CreditCard,
       title: 'Secure Payment',
-      description: 'Pay securely via Razorpay — UPI, cards, netbanking, and wallets.',
+      description: 'Pay securely through Razorpay and receive instant booking confirmation.',
     },
   ];
 
   const benefits = [
-    'Access to a growing network of schools',
-    'One-click bulk selection',
-    'Transparent fixed pricing',
+    'Access to multiple schools and facilities',
+    'Flexible hourly booking system',
+    'Transparent per-item pricing',
+    'Real-time availability checking',
     'Instant booking confirmation',
-    'Razorpay-powered secure payments',
-    'Dedicated support',
+    'Dedicated support team',
   ];
 
   return (
@@ -39,14 +38,13 @@ const Index = () => {
         <div className="absolute inset-0 bg-foreground/5" />
         <div className="container relative py-24 md:py-32">
           <div className="mx-auto max-w-3xl text-center">
-            <img src={zsLogo} alt="Zero's School" className="mx-auto mb-8 h-16 w-auto animate-fade-in" />
             <h1 className="mb-6 text-4xl font-bold tracking-tight md:text-6xl animate-fade-in">
-              Book School Facilities.{' '}
-              <span className="underline decoration-2 underline-offset-4">Zero Friction.</span>
+              Book School Facilities with{' '}
+              <span className="underline decoration-2 underline-offset-4">Ease</span>
             </h1>
             <p className="mb-8 text-lg text-muted-foreground md:text-xl animate-slide-up">
-              Zero's School connects colleges with schools. 
-              Select, pay, and confirm — no scheduling, no complexity.
+              GSX connects colleges with schools offering facilities and equipment. 
+              Browse, book, and pay — all in one seamless platform.
             </p>
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row animate-slide-up">
               <Button asChild size="lg">
@@ -93,11 +91,11 @@ const Index = () => {
           <div className="grid items-center gap-12 md:grid-cols-2">
             <div>
               <h2 className="mb-6 text-3xl font-bold">
-                Why Choose <span className="font-black">Zero's School</span>?
+                Why Choose <span className="font-black">GSX</span>?
               </h2>
               <p className="mb-8 text-muted-foreground">
-                We eliminate the friction between colleges and schools. 
-                Our platform offers transparency, simplicity, and a seamless booking experience.
+                We make it simple for colleges to find and book the facilities they need. 
+                Our platform offers transparency, flexibility, and a seamless booking experience.
               </p>
               <ul className="space-y-4">
                 {benefits.map((benefit) => (
@@ -128,10 +126,10 @@ const Index = () => {
           <div className="relative overflow-hidden rounded-3xl bg-foreground p-12 text-center text-background">
             <div className="relative z-10">
               <h2 className="mb-4 text-3xl font-bold md:text-4xl">
-                Ready to Get Started?
+                Ready to Book Your Next Session?
               </h2>
               <p className="mb-8 text-lg opacity-90">
-                Join colleges already using Zero's School to book facilities instantly.
+                Join hundreds of colleges already using GSX to book school facilities.
               </p>
               <Button asChild size="lg" variant="secondary">
                 <Link to="/register">

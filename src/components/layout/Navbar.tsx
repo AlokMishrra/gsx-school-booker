@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { ShoppingCart, Menu, X, User, LogOut, LayoutDashboard } from 'lucide-react';
 import { useState } from 'react';
-import zsLogo from '@/assets/zeroschool-logo.png';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +28,10 @@ export const Navbar = () => {
       <div className="container flex h-16 items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center space-x-2">
-          <img src={zsLogo} alt="Zero's School" className="h-8 w-auto" />
+          <span className="text-2xl font-bold">GSX</span>
+          <span className="hidden text-sm text-muted-foreground sm:inline-block">
+            Global ServiceX
+          </span>
         </Link>
 
         {/* Desktop Navigation */}

@@ -150,7 +150,7 @@ const AdminDashboard = () => {
         <div className="flex items-center justify-between animate-fade-in">
           <div>
             <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Overview of your Zero's School platform</p>
+            <p className="text-muted-foreground">Overview of your GSX platform</p>
           </div>
         </div>
 

@@ -65,7 +65,7 @@ const Login = () => {
         <Card className="w-full max-w-md animate-scale-in">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">
-              Welcome to <span className="font-black">Zero's School</span>
+              Welcome to <span className="font-black">GSX</span>
             </CardTitle>
             <CardDescription>
               Sign in to your account to continue booking

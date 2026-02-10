@@ -14,6 +14,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Search, MapPin, Building2, X, ArrowRight, CheckCircle, CheckSquare, Square } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const Schools = () => {
   const navigate = useNavigate();
@@ -27,14 +28,14 @@ const Schools = () => {
 
   // Check if user has seen onboarding
   useEffect(() => {
-    const hasSeenOnboarding = localStorage.getItem('zs_onboarding_complete');
+    const hasSeenOnboarding = localStorage.getItem('gsx_onboarding_complete');
     if (!hasSeenOnboarding) {
       setShowOnboarding(true);
     }
   }, []);
 
   const handleOnboardingComplete = () => {
-    localStorage.setItem('zs_onboarding_complete', 'true');
+    localStorage.setItem('gsx_onboarding_complete', 'true');
     setShowOnboarding(false);
   };
 
@@ -334,7 +335,9 @@ const Schools = () => {
                     school{selectedSchools.length !== 1 ? 's' : ''} selected
                   </span>
                 </div>
-                <Button onClick={handleProceedToBooking}>
+                <Button 
+                  onClick={handleProceedToBooking}
+                >
                   Proceed to Payment
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>

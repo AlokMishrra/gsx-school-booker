@@ -3,18 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, Loader2, CreditCard, ArrowLeft, MapPin } from 'lucide-react';
+import { CheckCircle, Loader2, CreditCard, ArrowLeft, Smartphone, MapPin, Clock, AlertCircle, CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { format, addDays } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
-
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
 
 interface SelectedSchool {
   id: string;
@@ -28,10 +29,11 @@ interface SchoolBooking {
   schoolId: string;
   schoolName: string;
   location: string;
-  price: number;
+  pricePerHour: number;
+  subtotal: number;
 }
 
-const RAZORPAY_KEY_ID = 'rzp_live_SCRcvtqJ5ouvgY';
+type PaymentStep = 'details' | 'method' | 'upi_input' | 'upi_waiting' | 'success';
 
 const Payment = () => {
   const navigate = useNavigate();
@@ -39,19 +41,33 @@ const Payment = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<SelectedSchool[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
+  const [selectedShift, setSelectedShift] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<string>('upi');
+  const [paymentStep, setPaymentStep] = useState<PaymentStep>('details');
+  const [upiId, setUpiId] = useState('');
   const [bookingId, setBookingId] = useState<string | null>(null);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
   const [schoolBookings, setSchoolBookings] = useState<SchoolBooking[]>([]);
 
+  const shifts = [
+    { id: 'shift1', name: 'First Half', time: '08:00 AM - 01:00 PM', startTime: '08:00:00', endTime: '13:00:00', hours: 5 },
+    { id: 'shift2', name: 'Second Half', time: '02:00 PM - 07:00 PM', startTime: '14:00:00', endTime: '19:00:00', hours: 5 },
+  ];
+
+  const selectedShiftData = shifts.find(s => s.id === selectedShift);
+
   useEffect(() => {
-    const storedSchools = sessionStorage.getItem('selectedSchools');
-    if (storedSchools) {
-      setSelectedSchools(JSON.parse(storedSchools));
+    const stored = sessionStorage.getItem('selectedSchools');
+    if (stored) {
+      setSelectedSchools(JSON.parse(stored));
     } else {
       navigate('/schools');
     }
   }, [navigate]);
 
+  // Fetch pricing for selected schools
   const { data: inventoryItems } = useQuery({
     queryKey: ['inventory-items', selectedSchools.map(s => s.id)],
     queryFn: async () => {
@@ -67,53 +83,108 @@ const Payment = () => {
     enabled: selectedSchools.length > 0,
   });
 
+  // Calculate pricing when shift is selected
   useEffect(() => {
-    if (!inventoryItems) return;
+    if (!selectedShiftData || !inventoryItems) return;
+    
     const bookings: SchoolBooking[] = selectedSchools.map(school => {
       const item = inventoryItems.find(i => i.school_id === school.id);
-      const price = item?.price_per_hour || 500;
+      const pricePerHour = item?.price_per_hour || 500; // Default price
+      const subtotal = pricePerHour * selectedShiftData.hours;
       return {
         schoolId: school.id,
         schoolName: school.name,
         location: [school.city, school.state].filter(Boolean).join(', ') || school.address,
-        price,
+        pricePerHour,
+        subtotal,
       };
     });
     setSchoolBookings(bookings);
-  }, [selectedSchools, inventoryItems]);
+  }, [selectedSchools, inventoryItems, selectedShiftData]);
 
-  const totalAmount = schoolBookings.reduce((sum, s) => sum + s.price, 0);
+  const totalAmount = schoolBookings.reduce((sum, s) => sum + s.subtotal, 0);
+
+  // Poll for payment confirmation when waiting
+  useEffect(() => {
+    if (paymentStep !== 'upi_waiting' || !paymentId) return;
+
+    const interval = setInterval(async () => {
+      setCheckingPayment(true);
+      const { data: payment } = await supabase
+        .from('payments')
+        .select('status')
+        .eq('id', paymentId)
+        .single();
+
+      if (payment?.status === 'completed') {
+        // Update booking status to confirmed
+        await supabase
+          .from('bookings')
+          .update({ status: 'confirmed' })
+          .eq('id', bookingId);
+
+        setPaymentStep('success');
+        sessionStorage.removeItem('selectedSchools');
+        clearInterval(interval);
+        
+        toast({
+          title: 'Payment Confirmed!',
+          description: 'Your booking has been successfully confirmed.',
+        });
+      }
+      setCheckingPayment(false);
+    }, 3000); // Check every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [paymentStep, paymentId, bookingId, toast]);
 
   if (!user || !collegeId) {
     navigate('/login');
     return null;
   }
 
-  if (selectedSchools.length === 0) return null;
+  if (selectedSchools.length === 0) {
+    return null;
+  }
 
-  const handleRazorpayPayment = async () => {
+  const validateUpiId = (upi: string) => {
+    // Basic UPI ID validation: username@bankname
+    const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z]{2,}$/;
+    return upiRegex.test(upi);
+  };
+
+  const handleSendUpiRequest = async () => {
+    if (!validateUpiId(upiId)) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid UPI ID',
+        description: 'Please enter a valid UPI ID (e.g., name@upi)',
+      });
+      return;
+    }
+
+    if (!selectedDate || !selectedShiftData) return;
+
     setLoading(true);
     try {
-      const today = format(new Date(), 'yyyy-MM-dd');
-
-      // Create booking with pending status first
+      // Create booking with pending status
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
           college_id: collegeId,
-          booking_date: today,
-          start_time: '00:00:00',
-          end_time: '23:59:59',
+          booking_date: format(selectedDate, 'yyyy-MM-dd'),
+          start_time: selectedShiftData.startTime,
+          end_time: selectedShiftData.endTime,
           total_amount: totalAmount,
-          status: 'pending',
-          notes: `Schools: ${schoolBookings.map(s => s.schoolName).join(', ')}`,
+          status: 'pending', // Pending until payment confirmed
+          notes: `Shift: ${selectedShiftData.name} | UPI: ${upiId}`,
         })
         .select()
         .single();
 
       if (bookingError) throw bookingError;
 
-      // Insert booking items
+      // Get inventory items for booking items
       const schoolIds = schoolBookings.map(s => s.schoolId);
       const { data: items } = await supabase
         .from('inventory_items')
@@ -126,95 +197,44 @@ const Payment = () => {
           booking_id: booking.id,
           inventory_item_id: item.id,
           quantity: 1,
-          hours: 1,
+          hours: selectedShiftData.hours,
           price_per_hour: Number(item.price_per_hour),
-          subtotal: Number(item.price_per_hour),
+          subtotal: Number(item.price_per_hour) * selectedShiftData.hours,
         }));
-        await supabase.from('booking_items').insert(bookingItems);
+
+        const { error: itemsError } = await supabase
+          .from('booking_items')
+          .insert(bookingItems);
+
+        if (itemsError) throw itemsError;
       }
 
-      // Create pending payment record
-      const { error: paymentError } = await supabase
+      // Create payment record with pending status
+      const { data: payment, error: paymentError } = await supabase
         .from('payments')
         .insert({
           booking_id: booking.id,
           amount: totalAmount,
-          status: 'pending',
-        });
+          status: 'pending', // Will be updated when payment confirmed
+          razorpay_payment_id: `upi_request_${Date.now()}`,
+        })
+        .select()
+        .single();
 
       if (paymentError) throw paymentError;
 
-      // Create Razorpay order via edge function
-      const { data: orderData, error: orderError } = await supabase.functions.invoke('create-razorpay-order', {
-        body: {
-          amount: totalAmount,
-          receipt: booking.id,
-          notes: { booking_id: booking.id },
-        },
+      setBookingId(booking.id);
+      setPaymentId(payment.id);
+      setPaymentStep('upi_waiting');
+
+      toast({
+        title: 'Payment Request Sent!',
+        description: `Payment request sent to ${upiId}. Please approve in your UPI app.`,
       });
-
-      if (orderError) throw new Error(orderError.message || 'Failed to create payment order');
-      if (orderData?.error) throw new Error(orderData.error);
-
-      // Open Razorpay checkout
-      const options = {
-        key: RAZORPAY_KEY_ID,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "Zero's School",
-        description: `Booking for ${schoolBookings.length} school(s)`,
-        order_id: orderData.order_id,
-        handler: async (response: any) => {
-          // Verify payment via edge function
-          const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-razorpay-payment', {
-            body: {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              booking_id: booking.id,
-            },
-          });
-
-          if (verifyError || !verifyData?.success) {
-            toast({
-              variant: 'destructive',
-              title: 'Payment Verification Failed',
-              description: 'Please contact support if money was deducted.',
-            });
-            return;
-          }
-
-          setBookingId(booking.id);
-          setPaymentSuccess(true);
-          sessionStorage.removeItem('selectedSchools');
-          toast({
-            title: 'Booking Confirmed!',
-            description: 'Your payment was successful.',
-          });
-        },
-        prefill: {
-          email: user.email,
-        },
-        theme: {
-          color: '#000000',
-        },
-        modal: {
-          ondismiss: () => {
-            setLoading(false);
-            toast({
-              title: 'Payment Cancelled',
-              description: 'You can try again when ready.',
-            });
-          },
-        },
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Payment Error',
+        title: 'Error',
         description: error.message || 'Something went wrong.',
       });
     } finally {
@@ -222,15 +242,97 @@ const Payment = () => {
     }
   };
 
+  const handleRazorpayPayment = async () => {
+    if (!selectedDate || !selectedShiftData) return;
+
+    setLoading(true);
+    try {
+      // Create booking
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          college_id: collegeId,
+          booking_date: format(selectedDate, 'yyyy-MM-dd'),
+          start_time: selectedShiftData.startTime,
+          end_time: selectedShiftData.endTime,
+          total_amount: totalAmount,
+          status: 'confirmed',
+          notes: `Shift: ${selectedShiftData.name}`,
+        })
+        .select()
+        .single();
+
+      if (bookingError) throw bookingError;
+
+      // Get inventory items
+      const schoolIds = schoolBookings.map(s => s.schoolId);
+      const { data: items } = await supabase
+        .from('inventory_items')
+        .select('id, school_id, price_per_hour')
+        .in('school_id', schoolIds)
+        .eq('is_active', true);
+
+      if (items && items.length > 0) {
+        const bookingItems = items.map((item) => ({
+          booking_id: booking.id,
+          inventory_item_id: item.id,
+          quantity: 1,
+          hours: selectedShiftData.hours,
+          price_per_hour: Number(item.price_per_hour),
+          subtotal: Number(item.price_per_hour) * selectedShiftData.hours,
+        }));
+
+        await supabase.from('booking_items').insert(bookingItems);
+      }
+
+      // Create payment record
+      await supabase.from('payments').insert({
+        booking_id: booking.id,
+        amount: totalAmount,
+        status: 'completed',
+        razorpay_payment_id: `rzp_${Date.now()}`,
+      });
+
+      setBookingId(booking.id);
+      setPaymentStep('success');
+      sessionStorage.removeItem('selectedSchools');
+
+      toast({
+        title: 'Booking Confirmed!',
+        description: 'Your booking has been successfully confirmed.',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Payment Failed',
+        description: error.message || 'Something went wrong.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Simulate payment confirmation (for demo)
+  const simulatePaymentConfirmation = async () => {
+    if (!paymentId) return;
+    
+    await supabase
+      .from('payments')
+      .update({ status: 'completed' })
+      .eq('id', paymentId);
+  };
+
+  const canProceedToPayment = selectedDate && selectedShift && schoolBookings.length > 0;
+
   // Success Screen
-  if (paymentSuccess) {
+  if (paymentStep === 'success') {
     return (
       <MainLayout>
         <div className="container py-12">
           <Card className="mx-auto max-w-lg text-center animate-scale-in">
             <CardContent className="pt-12">
-              <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-                <CheckCircle className="h-10 w-10" />
+              <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-gsx-success/10">
+                <CheckCircle className="h-10 w-10 text-gsx-success" />
               </div>
               <h1 className="mb-2 text-2xl font-bold">Booking Confirmed!</h1>
               <p className="mb-6 text-muted-foreground">
@@ -255,23 +357,215 @@ const Payment = () => {
     );
   }
 
+  // UPI Waiting Screen
+  if (paymentStep === 'upi_waiting') {
+    return (
+      <MainLayout>
+        <div className="container py-12">
+          <Card className="mx-auto max-w-lg text-center animate-scale-in">
+            <CardContent className="pt-12 space-y-6">
+              <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-gsx-warning/10">
+                <Clock className="h-10 w-10 text-gsx-warning animate-pulse" />
+              </div>
+              <div>
+                <h1 className="mb-2 text-2xl font-bold">Waiting for Payment</h1>
+                <p className="text-muted-foreground">
+                  Payment request sent to <span className="font-mono font-medium">{upiId}</span>
+                </p>
+              </div>
+              
+              <div className="rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/50 p-6">
+                <AlertCircle className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                <p className="text-sm font-medium">Open your UPI app and approve the payment</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Amount: ₹{totalAmount.toLocaleString()}
+                </p>
+              </div>
+
+              {checkingPayment && (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Checking payment status...
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {/* Demo button to simulate payment */}
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={simulatePaymentConfirmation}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  I've Completed Payment (Demo)
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  className="w-full"
+                  onClick={() => {
+                    setPaymentStep('method');
+                    setUpiId('');
+                  }}
+                >
+                  Try Different Payment Method
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // UPI Input Screen
+  if (paymentStep === 'upi_input') {
+    return (
+      <MainLayout>
+        <div className="container py-8">
+          <Button 
+            variant="ghost" 
+            onClick={() => setPaymentStep('method')} 
+            className="mb-6"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+
+          <div className="max-w-md mx-auto">
+            <Card className="animate-scale-in">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Enter UPI ID
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="upi">Your UPI ID</Label>
+                  <Input
+                    id="upi"
+                    placeholder="yourname@upi"
+                    value={upiId}
+                    onChange={(e) => setUpiId(e.target.value.toLowerCase())}
+                    className="text-lg"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Example: name@paytm, name@oksbi, name@ybl
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-muted p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-bold text-lg">
+                      ₹{totalAmount.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Schools</span>
+                    <span>{schoolBookings.length}</span>
+                  </div>
+                </div>
+
+                <Button 
+                  className="w-full text-lg py-6" 
+                  onClick={handleSendUpiRequest}
+                  disabled={loading || !upiId.trim()}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Sending Request...
+                    </>
+                  ) : (
+                    'Send Payment Request'
+                  )}
+                </Button>
+
+                <p className="text-center text-xs text-muted-foreground">
+                  A payment request will be sent to your UPI app
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Booking Details & Payment Method Selection
   return (
     <MainLayout>
       <div className="container py-8">
-        <Button variant="ghost" onClick={() => navigate('/schools')} className="mb-6">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/schools')} 
+          className="mb-6"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Schools
         </Button>
 
-        <h1 className="mb-8 text-3xl font-bold animate-fade-in">Complete Payment</h1>
+        <h1 className="mb-8 text-3xl font-bold animate-fade-in">
+          {paymentStep === 'details' ? 'Select Date & Shift' : 'Complete Payment'}
+        </h1>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Order Summary */}
+          {/* Booking Details / Order Summary */}
           <Card className="animate-slide-up">
             <CardHeader>
-              <CardTitle>Order Summary</CardTitle>
+              <CardTitle>{paymentStep === 'details' ? 'Booking Details' : 'Order Summary'}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Date Selection */}
+              <div className="space-y-2">
+                <Label>Select Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, 'PPP') : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Shift Selection */}
+              <div className="space-y-2">
+                <Label>Select Shift</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {shifts.map((shift) => (
+                    <Button
+                      key={shift.id}
+                      type="button"
+                      variant={selectedShift === shift.id ? 'default' : 'outline'}
+                      className="h-auto flex-col py-4"
+                      onClick={() => setSelectedShift(shift.id)}
+                    >
+                      <span className="font-semibold">{shift.name}</span>
+                      <span className="text-xs opacity-80">{shift.time}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Selected Schools */}
               <div className="space-y-3">
                 <h4 className="font-medium">Schools ({schoolBookings.length})</h4>
                 {schoolBookings.map((school, index) => (
@@ -287,56 +581,124 @@ const Payment = () => {
                         {school.location}
                       </p>
                     </div>
-                    <span className="font-medium">₹{school.price.toLocaleString()}</span>
+                    <span className="font-medium">₹{school.subtotal.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="border-t pt-4">
-                <div className="flex justify-between text-xl font-bold">
-                  <span>Total Amount</span>
-                  <span>₹{totalAmount.toLocaleString()}</span>
+              {canProceedToPayment && (
+                <div className="border-t pt-4">
+                  <div className="flex justify-between text-xl font-bold">
+                    <span>Total Amount</span>
+                    <span>₹{totalAmount.toLocaleString()}</span>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {paymentStep === 'details' && (
+                <Button 
+                  className="w-full mt-4" 
+                  disabled={!canProceedToPayment}
+                  onClick={() => setPaymentStep('method')}
+                >
+                  Continue to Payment
+                </Button>
+              )}
             </CardContent>
           </Card>
 
-          {/* Payment */}
-          <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Payment
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="rounded-lg bg-muted p-6 text-center space-y-3">
-                <p className="text-sm text-muted-foreground">Pay securely via Razorpay</p>
-                <p className="text-xs text-muted-foreground">
-                  UPI • Cards • NetBanking • Wallets
+          {/* Payment Method */}
+          {paymentStep === 'method' && (
+            <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+              <CardHeader>
+                <CardTitle>Select Payment Method</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <div className="space-y-3">
+                    {/* UPI Option */}
+                    <div>
+                      <RadioGroupItem value="upi" id="upi" className="peer sr-only" />
+                      <Label
+                        htmlFor="upi"
+                        className={cn(
+                          "flex items-center gap-4 rounded-lg border-2 p-4 cursor-pointer transition-all hover:border-foreground/50",
+                          paymentMethod === 'upi' ? "border-foreground bg-accent" : "border-border"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-12 w-12 rounded-lg flex items-center justify-center transition-colors",
+                          paymentMethod === 'upi' ? "bg-foreground" : "bg-muted"
+                        )}>
+                          <Smartphone className={cn(
+                            "h-6 w-6",
+                            paymentMethod === 'upi' ? "text-background" : "text-muted-foreground"
+                          )} />
+                        </div>
+                        <div>
+                          <p className="font-semibold">UPI Payment</p>
+                          <p className="text-sm text-muted-foreground">Pay using any UPI app (GPay, PhonePe, Paytm)</p>
+                        </div>
+                      </Label>
+                    </div>
+
+                    {/* Razorpay Option */}
+                    <div>
+                      <RadioGroupItem value="razorpay" id="razorpay" className="peer sr-only" />
+                      <Label
+                        htmlFor="razorpay"
+                        className={cn(
+                          "flex items-center gap-4 rounded-lg border-2 p-4 cursor-pointer transition-all hover:border-foreground/50",
+                          paymentMethod === 'razorpay' ? "border-foreground bg-accent" : "border-border"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-12 w-12 rounded-lg flex items-center justify-center transition-colors",
+                          paymentMethod === 'razorpay' ? "bg-foreground" : "bg-muted"
+                        )}>
+                          <CreditCard className={cn(
+                            "h-6 w-6",
+                            paymentMethod === 'razorpay' ? "text-background" : "text-muted-foreground"
+                          )} />
+                        </div>
+                        <div>
+                          <p className="font-semibold">Razorpay</p>
+                          <p className="text-sm text-muted-foreground">Cards, NetBanking, Wallets</p>
+                        </div>
+                      </Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+
+                <Button 
+                  className="w-full text-lg py-6" 
+                  onClick={() => {
+                    if (paymentMethod === 'upi') {
+                      setPaymentStep('upi_input');
+                    } else {
+                      handleRazorpayPayment();
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Processing...
+                    </>
+                  ) : paymentMethod === 'upi' ? (
+                    'Continue with UPI'
+                  ) : (
+                    `Pay ₹${totalAmount.toLocaleString()}`
+                  )}
+                </Button>
+
+                <p className="text-center text-xs text-muted-foreground">
+                  Secure payment • 100% Safe
                 </p>
-              </div>
-
-              <Button 
-                className="w-full text-lg py-6" 
-                onClick={handleRazorpayPayment}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  `Pay ₹${totalAmount.toLocaleString()}`
-                )}
-              </Button>
-
-              <p className="text-center text-xs text-muted-foreground">
-                Powered by Razorpay • 100% Secure
-              </p>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </MainLayout>
