@@ -57,11 +57,11 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        gsx: {
-          success: "hsl(var(--gsx-success))",
-          "success-foreground": "hsl(var(--gsx-success-foreground))",
-          warning: "hsl(var(--gsx-warning))",
-          "warning-foreground": "hsl(var(--gsx-warning-foreground))",
+        zs: {
+          success: "hsl(var(--zs-success))",
+          "success-foreground": "hsl(var(--zs-success-foreground))",
+          warning: "hsl(var(--zs-warning))",
+          "warning-foreground": "hsl(var(--zs-warning-foreground))",
         },
       },
       borderRadius: {

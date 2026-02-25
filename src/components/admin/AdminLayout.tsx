@@ -9,17 +9,19 @@ import {
   Upload, 
   LogOut,
   Menu,
-  X 
+  X,
+  TrendingUp
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/schools', label: 'Schools', icon: Building2 },
-  { href: '/admin/bookings', label: 'Bookings', icon: Calendar },
-  { href: '/admin/reports', label: 'Reports', icon: BarChart3 },
-  { href: '/admin/bulk', label: 'Bulk Operations', icon: Upload },
+  { href: '/ZSINA/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/ZSINA/schools', label: 'Schools', icon: Building2 },
+  { href: '/ZSINA/bookings', label: 'Bookings', icon: Calendar },
+  { href: '/ZSINA/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/ZSINA/bulk', label: 'Bulk Operations', icon: Upload },
+  { href: '/ZSINA/analytics', label: 'Analytics', icon: TrendingUp },
 ];
 
 interface AdminLayoutProps {
@@ -47,9 +49,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-16 items-center justify-between border-b px-6">
-            <Link to="/admin" className="flex items-center space-x-2">
-              <span className="text-2xl font-bold gsx-gradient-text">GSX</span>
-              <span className="text-xs text-muted-foreground">Admin</span>
+            <Link to="/ZSINA/dashboard" className="flex items-center space-x-2">
+              <img src="/zeroschool-logo.svg" alt="ZeroSchool" className="h-8 w-8" />
+              <div className="flex flex-col">
+                <span className="text-lg font-bold">ZS Admin</span>
+              </div>
             </Link>
             <Button
               variant="ghost"

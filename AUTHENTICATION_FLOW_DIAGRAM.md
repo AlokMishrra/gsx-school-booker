@@ -1,0 +1,373 @@
+# Authentication System - Flow Diagram
+
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        USER INTERFACE                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │   Register   │    │    Login     │    │ Career Fair  │      │
+│  │   /register  │    │    /login    │    │   /schools   │      │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘      │
+│         │                    │                    │              │
+└─────────┼────────────────────┼────────────────────┼──────────────┘
+          │                    │                    │
+          │                    │                    │
+┌─────────▼────────────────────▼────────────────────▼──────────────┐
+│                    AUTHENTICATION CONTEXT                         │
+│                   (src/contexts/AuthContext.tsx)                  │
+│                                                                   │
+│  • Manages user session                                          │
+│  • Provides user, isAdmin, collegeId                            │
+│  • Handles signOut                                               │
+└─────────┬────────────────────┬────────────────────┬──────────────┘
+          │                    │                    │
+          │                    │                    │
+┌─────────▼────────────────────▼────────────────────▼──────────────┐
+│                      SUPABASE CLIENT                              │
+│                 (src/integrations/supabase/client)                │
+│                                                                   │
+│  • supabase.auth.signUp()                                        │
+│  • supabase.auth.signInWithPassword()                           │
+│  • supabase.auth.signOut()                                       │
+│  • supabase.from('colleges').insert()                           │
+└─────────┬────────────────────┬────────────────────┬──────────────┘
+          │                    │                    │
+          │                    │                    │
+┌─────────▼────────────────────▼────────────────────▼──────────────┐
+│                      SUPABASE DATABASE                            │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+## Registration Flow
+
+```
+┌──────────┐
+│  User    │
+│  Visits  │
+│/register │
+└────┬─────┘
+     │
+     ▼
+┌─────────────────────────────────────────┐
+│  Registration Form                      │
+│  ┌───────────────────────────────────┐ │
+│  │ • College Name                    │ │
+│  │ • Contact Person                  │ │
+│  │ • Email                           │ │
+│  │ • Phone                           │ │
+│  │ • Address                         │ │
+│  │ • Password                        │ │
+│  │ • Confirm Password                │ │
+│  └───────────────────────────────────┘ │
+└────┬────────────────────────────────────┘
+     │ Click "Create Account"
+     ▼
+┌─────────────────────────────────────────┐
+│  Frontend Validation                    │
+│  • Check all fields filled              │
+│  • Validate email format                │
+│  • Check password length (min 6)        │
+│  • Verify passwords match               │
+└────┬────────────────────────────────────┘
+     │ Valid ✓
+     ▼
+┌─────────────────────────────────────────┐
+│  supabase.auth.signUp()                 │
+│  • Creates user in auth.users           │
+│  • Sends verification email (optional)  │
+└────┬────────────────────────────────────┘
+     │ Success
+     ▼
+┌─────────────────────────────────────────┐
+│  Database Trigger Fires                 │
+│  • on_auth_user_created                 │
+│  • Auto-creates user_roles entry        │
+│  • Sets role = 'user'                   │
+└────┬────────────────────────────────────┘
+     │
+     ▼
+┌─────────────────────────────────────────┐
+│  Create College Profile                 │
+│  • Insert into colleges table           │
+│  • Links to auth.users via user_id      │
+│  • Stores college information           │
+└────┬────────────────────────────────────┘
+     │ Success
+     ▼
+┌─────────────────────────────────────────┐
+│  Show Success Message                   │
+│  "Please check your email to verify"    │
+└────┬────────────────────────────────────┘
+     │
+     ▼
+┌─────────────────────────────────────────┐
+│  Redirect to /login                     │
+└─────────────────────────────────────────┘
+```
+
+## Login Flow
+
+```
+┌──────────┐
+│  User    │
+│  Visits  │
+│ /login   │
+└────┬─────┘
+     │
+     ▼
+┌─────────────────────────────────────────┐
+│  Login Form                             │
+│  ┌───────────────────────────────────┐ │
+│  │ • Email                           │ │
+│  │ • Password                        │ │
+│  └───────────────────────────────────┘ │
+└────┬────────────────────────────────────┘
+     │ Click "Sign In"
+     ▼
+┌─────────────────────────────────────────┐
+│  Frontend Validation                    │
+│  • Check email format                   │
+│  • Check password length                │
+└────┬────────────────────────────────────┘
+     │ Valid ✓
+     ▼
+┌─────────────────────────────────────────┐
+│  supabase.auth.signInWithPassword()     │
+│  • Validates credentials                │
+│  • Creates session token                │
+└────┬────────────────────────────────────┘
+     │ Success
+     ▼
+┌─────────────────────────────────────────┐
+│  Check User Role                        │
+│  • Query user_roles table               │
+│  • Check if role = 'admin'              │
+└────┬────────────────────────────────────┘
+     │
+     ├─── Admin? ──────────────────────────┐
+     │                                     │
+     │ Yes                                 │ No
+     ▼                                     ▼
+┌──────────────────┐            ┌──────────────────┐
+│  Redirect to     │            │  Redirect to     │
+│  /ZSINA/dashboard│            │  /schools        │
+└──────────────────┘            └──────────────────┘
+```
+
+## Booking Authentication Flow
+
+```
+┌──────────┐
+│  User    │
+│  Visits  │
+│ /schools │
+└────┬─────┘
+     │
+     ▼
+┌─────────────────────────────────────────┐
+│  Browse Schools & Sessions              │
+│  • View all schools                     │
+│  • Filter by state/tier                 │
+│  • Select schools (checkbox)            │
+│  • Select session slots                 │
+└────┬────────────────────────────────────┘
+     │ Click "Confirm Booking"
+     ▼
+┌─────────────────────────────────────────┐
+│  Check Authentication                   │
+│  • useAuth() hook                       │
+│  • Check if user exists                 │
+└────┬────────────────────────────────────┘
+     │
+     ├─── Logged In? ──────────────────────┐
+     │                                     │
+     │ No                                  │ Yes
+     ▼                                     ▼
+┌──────────────────┐            ┌──────────────────┐
+│  Show Auth       │            │  Show Booking    │
+│  Dialog          │            │  Confirmation    │
+│                  │            │  Dialog          │
+│  ┌────────────┐  │            │                  │
+│  │   Login    │  │            │  • College Name  │
+│  │   Button   │  │            │  • User Name     │
+│  └────────────┘  │            │  • Phone         │
+│                  │            │  • Email         │
+│  ┌────────────┐  │            │                  │
+│  │  Register  │  │            │  [Confirm]       │
+│  │   Button   │  │            └──────────────────┘
+│  └────────────┘  │                     │
+└──────────────────┘                     │
+     │                                   │
+     │ User clicks Login/Register        │
+     ▼                                   ▼
+┌──────────────────┐            ┌──────────────────┐
+│  Redirect to     │            │  Process Booking │
+│  /login or       │            │  • Save to DB    │
+│  /register       │            │  • Update slots  │
+└──────────────────┘            │  • Show success  │
+                                └──────────────────┘
+```
+
+## Database Relationships
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      auth.users (Supabase)                  │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │ id (UUID) - Primary Key                               │ │
+│  │ email (TEXT)                                          │ │
+│  │ encrypted_password (TEXT)                             │ │
+│  │ created_at (TIMESTAMPTZ)                              │ │
+│  └───────────────────────────────────────────────────────┘ │
+└────┬──────────────────────────────────┬─────────────────────┘
+     │                                  │
+     │ user_id (FK)                     │ user_id (FK)
+     │                                  │
+     ▼                                  ▼
+┌─────────────────────┐      ┌─────────────────────────────┐
+│  public.user_roles  │      │    public.colleges          │
+│  ┌───────────────┐  │      │  ┌───────────────────────┐ │
+│  │ id (UUID)     │  │      │  │ id (UUID)             │ │
+│  │ user_id (FK)  │  │      │  │ user_id (FK)          │ │
+│  │ role (ENUM)   │  │      │  │ name (TEXT)           │ │
+│  │ created_at    │  │      │  │ contact_person (TEXT) │ │
+│  └───────────────┘  │      │  │ email (TEXT)          │ │
+└─────────────────────┘      │  │ phone (TEXT)          │ │
+                             │  │ address (TEXT)        │ │
+                             │  │ created_at            │ │
+                             │  └───────────────────────┘ │
+                             └──────────┬──────────────────┘
+                                        │
+                                        │ college_id (FK)
+                                        │
+                                        ▼
+                             ┌─────────────────────────────┐
+                             │ career_fair_sessions        │
+                             │  ┌───────────────────────┐ │
+                             │  │ id (UUID)             │ │
+                             │  │ school_id (FK)        │ │
+                             │  │ booked_by_college_id  │ │
+                             │  │ session_type (TEXT)   │ │
+                             │  │ slot_number (INT)     │ │
+                             │  │ is_booked (BOOL)      │ │
+                             │  │ booking_data (JSONB)  │ │
+                             │  └───────────────────────┘ │
+                             └─────────────────────────────┘
+```
+
+## Security Model (RLS Policies)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    ROW LEVEL SECURITY                        │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  public.colleges                                             │
+├─────────────────────────────────────────────────────────────┤
+│  ✓ Users can view their own profile                         │
+│  ✓ Users can update their own profile                       │
+│  ✓ Users can insert their own profile                       │
+│  ✓ Admins can view all colleges                             │
+│  ✓ Admins can manage all colleges                           │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  public.user_roles                                           │
+├─────────────────────────────────────────────────────────────┤
+│  ✓ Users can view their own roles                           │
+│  ✓ Admins can view all roles                                │
+│  ✓ Admins can manage roles                                  │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  public.schools                                              │
+├─────────────────────────────────────────────────────────────┤
+│  ✓ Anyone can view active schools (public read)             │
+│  ✓ Admins can view all schools                              │
+│  ✓ Admins can manage schools                                │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  career_fair_sessions                                        │
+├─────────────────────────────────────────────────────────────┤
+│  ✓ Anyone can view sessions (public read)                   │
+│  ✓ Anyone can book sessions (public write)                  │
+│  ✓ Anyone can update sessions (public write)                │
+│  ✓ Admins can manage all sessions                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## User Roles
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         USER ROLES                           │
+└─────────────────────────────────────────────────────────────┘
+
+┌──────────────────────┐              ┌──────────────────────┐
+│    Regular User      │              │       Admin          │
+│    (role='user')     │              │    (role='admin')    │
+├──────────────────────┤              ├──────────────────────┤
+│                      │              │                      │
+│  Can:                │              │  Can:                │
+│  • Register          │              │  • All user actions  │
+│  • Login             │              │  • View all colleges │
+│  • View schools      │              │  • Manage schools    │
+│  • Book sessions     │              │  • View all bookings │
+│  • View own bookings │              │  • Manage bookings   │
+│  • Update profile    │              │  • View analytics    │
+│                      │              │  • Assign roles      │
+│  Cannot:             │              │  • Access dashboard  │
+│  • Access admin      │              │                      │
+│  • View others' data │              │                      │
+│  • Manage schools    │              │                      │
+│                      │              │                      │
+└──────────────────────┘              └──────────────────────┘
+```
+
+## Session Management
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SESSION LIFECYCLE                         │
+└─────────────────────────────────────────────────────────────┘
+
+Login/Register
+     │
+     ▼
+┌─────────────────────────────────────────┐
+│  Supabase Creates Session               │
+│  • JWT token stored in localStorage     │
+│  • Expires after configured time        │
+│  • Auto-refreshed by Supabase           │
+└────┬────────────────────────────────────┘
+     │
+     ▼
+┌─────────────────────────────────────────┐
+│  AuthContext Monitors Session           │
+│  • onAuthStateChange listener           │
+│  • Updates user state                   │
+│  • Checks user role                     │
+│  • Provides auth status to app          │
+└────┬────────────────────────────────────┘
+     │
+     ▼
+┌─────────────────────────────────────────┐
+│  User Navigates App                     │
+│  • Session token sent with requests     │
+│  • RLS policies check auth.uid()        │
+│  • Protected routes check user state    │
+└────┬────────────────────────────────────┘
+     │
+     ▼
+┌─────────────────────────────────────────┐
+│  Logout                                 │
+│  • supabase.auth.signOut()              │
+│  • Clears session token                 │
+│  • Redirects to login                   │
+└─────────────────────────────────────────┘
+```

@@ -35,19 +35,34 @@ const Login = () => {
   const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
       if (error) throw error;
 
-      toast({
-        title: 'Welcome back!',
-        description: 'You have successfully signed in.',
-      });
+      // Check if user is admin
+      if (authData.user) {
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', authData.user.id);
+        
+        const isAdmin = roles?.some(r => r.role === 'admin') ?? false;
+        
+        toast({
+          title: 'Welcome back!',
+          description: 'You have successfully signed in.',
+        });
 
-      navigate('/schools');
+        // Redirect based on role
+        if (isAdmin) {
+          navigate('/ZSINA/dashboard');
+        } else {
+          navigate('/career-fair');
+        }
+      }
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -65,7 +80,7 @@ const Login = () => {
         <Card className="w-full max-w-md animate-scale-in">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">
-              Welcome to <span className="gsx-gradient-text">GSX</span>
+              Welcome to <span className="zs-gradient-text">ZeroSchool</span>
             </CardTitle>
             <CardDescription>
               Sign in to your account to continue booking
@@ -110,7 +125,7 @@ const Login = () => {
                 />
                 <Button 
                   type="submit" 
-                  className="w-full gsx-gradient" 
+                  className="w-full zs-gradient" 
                   disabled={loading}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

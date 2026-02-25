@@ -21,6 +21,14 @@ import AdminSchools from "./pages/admin/AdminSchools";
 import AdminBookings from "./pages/admin/AdminBookings";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminBulk from "./pages/admin/AdminBulk";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import CareerFair from "./pages/CareerFair";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import RefundPolicy from "./pages/RefundPolicy";
+import ContactUs from "./pages/ContactUs";
+import HelpCenter from "./pages/HelpCenter";
+import FAQs from "./pages/FAQs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,24 +46,29 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/schools" element={<Schools />} />
+              <Route path="/career-fair" element={<CareerFair />} />
+              <Route path="/schools" element={<CareerFair />} />
               <Route path="/schools/:id" element={<SchoolDetail />} />
               
-              {/* Protected Routes (Colleges) */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/booking" element={<Booking />} />
-                <Route path="/payment" element={<Payment />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-              </Route>
+              {/* Legal & Support Pages */}
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
+              <Route path="/refund-policy" element={<RefundPolicy />} />
+              <Route path="/contact-us" element={<ContactUs />} />
+              <Route path="/help-center" element={<HelpCenter />} />
+              <Route path="/faqs" element={<FAQs />} />
+              
+              {/* Admin Login Route */}
+              <Route path="/ZSINA" element={<Login />} />
               
               {/* Admin Routes */}
               <Route element={<AdminRoute />}>
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/schools" element={<AdminSchools />} />
-                <Route path="/admin/bookings" element={<AdminBookings />} />
-                <Route path="/admin/reports" element={<AdminReports />} />
-                <Route path="/admin/bulk" element={<AdminBulk />} />
+                <Route path="/ZSINA/dashboard" element={<AdminDashboard />} />
+                <Route path="/ZSINA/schools" element={<AdminSchools />} />
+                <Route path="/ZSINA/bookings" element={<AdminBookings />} />
+                <Route path="/ZSINA/reports" element={<AdminReports />} />
+                <Route path="/ZSINA/bulk" element={<AdminBulk />} />
+                <Route path="/ZSINA/analytics" element={<AdminAnalytics />} />
               </Route>
               
               {/* Catch-all */}

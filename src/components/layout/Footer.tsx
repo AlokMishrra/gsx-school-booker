@@ -8,10 +8,10 @@ export const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center space-x-2">
-              <span className="text-2xl font-bold gsx-gradient-text">GSX</span>
+              <span className="text-2xl font-bold zs-gradient-text">ZeroSchool</span>
             </Link>
             <p className="text-sm text-muted-foreground">
-              Global ServiceX - Your trusted platform for booking school facilities and equipment.
+              ZeroSchool - Your trusted platform for booking school facilities and equipment.
             </p>
           </div>
 
@@ -42,7 +42,7 @@ export const Footer = () => {
             <h4 className="font-semibold">Support</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <a href="mailto:support@gsx.com" className="transition-colors hover:text-primary">
+                <a href="mailto:support@zeroschool.com" className="transition-colors hover:text-primary">
                   Contact Us
                 </a>
               </li>
@@ -83,7 +83,7 @@ export const Footer = () => {
         </div>
 
         <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} GSX - Global ServiceX. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} ZeroSchool. All rights reserved.</p>
         </div>
       </div>
     </footer>

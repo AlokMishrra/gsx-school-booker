@@ -28,19 +28,19 @@ export const Navbar = () => {
       <div className="container flex h-16 items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center space-x-2">
-          <span className="text-2xl font-bold gsx-gradient-text">GSX</span>
+          <span className="text-2xl font-bold zs-gradient-text">ZeroSchool</span>
           <span className="hidden text-sm text-muted-foreground sm:inline-block">
-            Global ServiceX
+            School Booking Platform
           </span>
         </Link>
 
         {/* Desktop Navigation */}
         <div className="hidden items-center space-x-6 md:flex">
           <Link 
-            to="/schools" 
+            to="/career-fair" 
             className="text-sm font-medium transition-colors hover:text-primary"
           >
-            Browse Schools
+            Book Sessions
           </Link>
           
           {user && (
@@ -66,12 +66,12 @@ export const Navbar = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 {isAdmin ? (
-                  <DropdownMenuItem onClick={() => navigate('/admin')}>
+                  <DropdownMenuItem onClick={() => navigate('/ZSINA/dashboard')}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     Admin Dashboard
                   </DropdownMenuItem>
                 ) : (
-                  <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+                  <DropdownMenuItem onClick={() => navigate('/career-fair')}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     My Dashboard
                   </DropdownMenuItem>
@@ -88,7 +88,7 @@ export const Navbar = () => {
               <Button variant="ghost" onClick={() => navigate('/login')}>
                 Sign In
               </Button>
-              <Button className="gsx-gradient" onClick={() => navigate('/register')}>
+              <Button className="zs-gradient" onClick={() => navigate('/register')}>
                 Register
               </Button>
             </div>
@@ -111,11 +111,11 @@ export const Navbar = () => {
         <div className="border-t bg-background md:hidden animate-slide-up">
           <div className="container space-y-4 py-4">
             <Link 
-              to="/schools" 
+              to="/career-fair" 
               className="block text-sm font-medium"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Browse Schools
+              Book Sessions
             </Link>
             
             {user && (
@@ -132,7 +132,7 @@ export const Navbar = () => {
             {user ? (
               <>
                 <Link 
-                  to={isAdmin ? '/admin' : '/dashboard'} 
+                  to={isAdmin ? '/ZSINA/dashboard' : '/career-fair'} 
                   className="block text-sm font-medium"
                   onClick={() => setMobileMenuOpen(false)}
                 >
@@ -162,7 +162,7 @@ export const Navbar = () => {
                   Sign In
                 </Button>
                 <Button 
-                  className="w-full gsx-gradient" 
+                  className="w-full zs-gradient" 
                   onClick={() => {
                     navigate('/register');
                     setMobileMenuOpen(false);

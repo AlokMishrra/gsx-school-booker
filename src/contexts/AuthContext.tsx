@@ -37,12 +37,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkUserRole = async (userId: string) => {
     try {
-      const { data: roles } = await supabase
+      console.log('Checking user role for:', userId);
+      
+      const { data: roles, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId);
       
+      console.log('User roles:', roles, 'Error:', error);
+      
       const hasAdminRole = roles?.some(r => r.role === 'admin') ?? false;
+      console.log('Is admin:', hasAdminRole);
       setIsAdmin(hasAdminRole);
 
       // Get college ID if user is a college

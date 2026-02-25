@@ -81,7 +81,7 @@ const Register = () => {
         description: 'Please check your email to verify your account.',
       });
 
-      navigate('/login');
+      navigate('/career-fair');
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -99,7 +99,7 @@ const Register = () => {
         <Card className="w-full max-w-lg animate-scale-in">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">
-              Register with <span className="gsx-gradient-text">GSX</span>
+              Register with <span className="zs-gradient-text">ZeroSchool</span>
             </CardTitle>
             <CardDescription>
               Create your college account to start booking
@@ -209,7 +209,7 @@ const Register = () => {
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full gsx-gradient" 
+                  className="w-full zs-gradient" 
                   disabled={loading}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

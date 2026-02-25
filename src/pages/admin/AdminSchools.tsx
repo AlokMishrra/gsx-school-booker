@@ -19,10 +19,16 @@ import { Plus, Pencil, Trash2, Package, Building2 } from 'lucide-react';
 
 const schoolSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  address: z.string().min(5, 'Address must be at least 5 characters').max(500),
-  contact_email: z.string().email('Invalid email address'),
-  contact_phone: z.string().min(10, 'Invalid phone number').max(15),
+  address: z.string().max(500).optional().or(z.literal('')),
+  city: z.string().min(2, 'City is required').max(100),
+  contact_email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  contact_phone: z.string().max(15).optional().or(z.literal('')),
   description: z.string().max(1000).optional(),
+  tier: z.string().min(1, 'Tier is required'),
+  school_fee: z.string().optional(),
+  average_fee: z.string().optional(),
+  student_strength: z.string().optional(),
+  image_url: z.string().url('Invalid URL').optional().or(z.literal('')),
 });
 
 const inventorySchema = z.object({
@@ -64,9 +70,15 @@ const AdminSchools = () => {
     defaultValues: {
       name: '',
       address: '',
+      city: '',
       contact_email: '',
       contact_phone: '',
       description: '',
+      tier: '2',
+      school_fee: '',
+      average_fee: '',
+      student_strength: '',
+      image_url: '',
     },
   });
 
@@ -85,11 +97,17 @@ const AdminSchools = () => {
     mutationFn: async (data: SchoolFormData) => {
       const { error } = await supabase.from('schools').insert([{
         name: data.name,
-        address: data.address,
-        contact_email: data.contact_email,
-        contact_phone: data.contact_phone,
+        address: data.address || null,
+        city: data.city,
+        contact_email: data.contact_email || null,
+        contact_phone: data.contact_phone || null,
         description: data.description || null,
-      }]);
+        tier: parseInt(data.tier),
+        school_fee: data.school_fee || null,
+        average_fee: data.average_fee || null,
+        student_strength: data.student_strength ? parseInt(data.student_strength) : null,
+        image_url: data.image_url || null,
+      } as any]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -105,7 +123,20 @@ const AdminSchools = () => {
 
   const updateSchoolMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: SchoolFormData }) => {
-      const { error } = await supabase.from('schools').update(data).eq('id', id);
+      const updateData: any = {
+        name: data.name,
+        address: data.address || null,
+        city: data.city,
+        contact_email: data.contact_email || null,
+        contact_phone: data.contact_phone || null,
+        description: data.description || null,
+        tier: parseInt(data.tier),
+        school_fee: data.school_fee || null,
+        average_fee: data.average_fee || null,
+        student_strength: data.student_strength ? parseInt(data.student_strength) : null,
+        image_url: data.image_url || null,
+      };
+      const { error } = await supabase.from('schools').update(updateData).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -189,9 +220,15 @@ const AdminSchools = () => {
     schoolForm.reset({
       name: school.name,
       address: school.address,
+      city: school.city || '',
       contact_email: school.contact_email,
       contact_phone: school.contact_phone,
       description: school.description || '',
+      tier: school.tier?.toString() || '2',
+      school_fee: school.school_fee || '',
+      average_fee: school.average_fee || '',
+      student_strength: school.student_strength?.toString() || '',
+      image_url: school.image_url || '',
     });
     setSchoolDialogOpen(true);
   };
@@ -223,7 +260,7 @@ const AdminSchools = () => {
                 Add School
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingSchool ? 'Edit School' : 'Add New School'}</DialogTitle>
               </DialogHeader>
@@ -242,12 +279,49 @@ const AdminSchools = () => {
                       </FormItem>
                     )}
                   />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={schoolForm.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="e.g., Delhi, Mumbai" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={schoolForm.control}
+                      name="tier"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tier</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="1">Tier 1 - Premium</SelectItem>
+                              <SelectItem value="2">Tier 2 - Quality</SelectItem>
+                              <SelectItem value="3">Tier 3 - Standard</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   <FormField
                     control={schoolForm.control}
                     name="address"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Address</FormLabel>
+                        <FormLabel>Address (Optional)</FormLabel>
                         <FormControl>
                           <Textarea {...field} />
                         </FormControl>
@@ -261,7 +335,7 @@ const AdminSchools = () => {
                       name="contact_email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel>Email (Optional)</FormLabel>
                           <FormControl>
                             <Input type="email" {...field} />
                           </FormControl>
@@ -274,7 +348,7 @@ const AdminSchools = () => {
                       name="contact_phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Phone</FormLabel>
+                          <FormLabel>Phone (Optional)</FormLabel>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -283,6 +357,60 @@ const AdminSchools = () => {
                       )}
                     />
                   </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={schoolForm.control}
+                      name="school_fee"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>School Fee</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="₹50,000" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={schoolForm.control}
+                      name="average_fee"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Average Fee</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="₹45,000" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={schoolForm.control}
+                      name="student_strength"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Student Strength</FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} placeholder="2500" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={schoolForm.control}
+                    name="image_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Image URL (Optional)</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="https://example.com/image.jpg" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={schoolForm.control}
                     name="description"
@@ -324,10 +452,24 @@ const AdminSchools = () => {
                         <Badge variant={school.is_active ? 'default' : 'secondary'}>
                           {school.is_active ? 'Active' : 'Inactive'}
                         </Badge>
+                        {school.tier && (
+                          <Badge variant="outline">Tier {school.tier}</Badge>
+                        )}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground mt-1">
-                        {school.address} • {school.contact_phone}
+                        {school.city && <span className="font-medium">{school.city}</span>}
+                        {school.city && school.address && ' • '}
+                        {school.address}
+                        {(school.city || school.address) && school.contact_phone && ' • '}
+                        {school.contact_phone}
                       </p>
+                      {(school.school_fee || school.student_strength) && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {school.school_fee && <span>Fee: {school.school_fee}</span>}
+                          {school.school_fee && school.student_strength && ' • '}
+                          {school.student_strength && <span>Students: {school.student_strength}</span>}
+                        </p>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => openEditSchool(school)}>
